@@ -56,3 +56,34 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## 🚀 NSE Volume Spike Radar
+
+A high-performance intraday scanner to identify stocks with significant volume surges (Current 5-min Volume > 2x of 5-Day Average).
+
+### 🛠 Setup
+1. **Install Requirements**:
+   ```bash
+   pip3 install -r requirements.txt
+   ```
+
+### 🖥 Web Interface (Recommended)
+The tool includes a premium Glassmorphic web dashboard with real-time progress tracking.
+1. **Start the Server**:
+   ```bash
+   python3 app.py
+   ```
+2. **Access UI**:
+   Open [http://localhost:8083](http://localhost:8083) in your browser.
+
+### 📜 CLI Mode
+For quick terminal-based analysis:
+```bash
+python3 analyze_volume.py
+```
+
+### ⚙️ Features
+- **Smart Filtering**: Automatically ignores illiquid stocks (< ₹5L turnover) to reduce noise.
+- **Auto-Symbol Fetching**: Dynamically fetches all 2200+ NSE symbols.
+- **Performance Optimized**: Uses batch processing and multi-threaded downloads via `yfinance`.
+- **Visual Intensity**: The UI color-codes results based on the spike magnitude.

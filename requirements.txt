@@ -1,0 +1,7 @@
+nselib
+yfinance
+pandas
+numpy
+flask
+flask-cors
+

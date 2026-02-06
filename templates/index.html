@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -27,7 +28,7 @@
 
         body {
             background: var(--bg);
-            background-image: 
+            background-image:
                 radial-gradient(circle at 20% 20%, #1e1b4b 0%, transparent 40%),
                 radial-gradient(circle at 80% 80%, #312e81 0%, transparent 40%);
             color: var(--text);
@@ -51,7 +52,78 @@
             border: 1px solid var(--glass-border);
             border-radius: 24px;
             margin-bottom: 2rem;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        /* Toggle Switch Style */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #334155;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--accent);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+
+        .toggle-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #94a3b8;
         }
 
         h1 {
@@ -59,6 +131,7 @@
             font-weight: 600;
             background: linear-gradient(to right, #818cf8, #c084fc);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -158,7 +231,7 @@
             border-radius: 24px;
             border: 1px solid var(--glass-border);
             overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
         }
 
         .table-container {
@@ -171,7 +244,7 @@
         }
 
         th {
-            background: rgba(0,0,0,0.2);
+            background: rgba(0, 0, 0, 0.2);
             text-align: left;
             padding: 1.2rem 1.5rem;
             font-size: 0.85rem;
@@ -199,9 +272,57 @@
             display: inline-block;
         }
 
-        .ratio-high { background: rgba(16, 185, 129, 0.1); color: var(--success); }
-        .ratio-mid { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
-        .ratio-low { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
+        .ratio-high {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .ratio-mid {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .ratio-low {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        /* Pagination Styles */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: rgba(0, 0, 0, 0.1);
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .page-info {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .btn-page {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            border: 1px solid var(--glass-border);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .btn-page:hover:not(:disabled) {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-page:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
 
         .loader {
             width: 20px;
@@ -213,7 +334,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         /* Empty State */
@@ -224,6 +347,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -231,10 +355,19 @@
                 <h1>Volume Spike Radar</h1>
                 <p style="color: #64748b; font-size: 0.9rem;">NSE Intraday Scanner (5-Min Vol vs 5-Day Avg)</p>
             </div>
-            <button id="fetchBtn" class="btn">
-                <span id="btnIcon">⚡</span>
-                <span id="btnText">Fetch Latest Data</span>
-            </button>
+            <div class="header-controls">
+                <div class="toggle-container">
+                    <span class="toggle-label">15m Trend Filter</span>
+                    <label class="switch">
+                        <input type="checkbox" id="trendFilter">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <button id="fetchBtn" class="btn">
+                    <span id="btnIcon">⚡</span>
+                    <span id="btnText">Fetch Latest Data</span>
+                </button>
+            </div>
         </header>
 
         <section id="progressSection" class="progress-card">
@@ -282,12 +415,18 @@
                     Click "Fetch Latest Data" to start scanning the market.
                 </div>
             </div>
+            <div class="pagination" id="paginationControls" style="display: none;">
+                <button id="prevBtn" class="btn-page" disabled>Previous</button>
+                <span id="pageInfo" class="page-info">Page 1 of 1</span>
+                <button id="nextBtn" class="btn-page" disabled>Next</button>
+            </div>
         </div>
     </div>
 
     <script>
         const fetchBtn = document.getElementById('fetchBtn');
         const btnText = document.getElementById('btnText');
+        const trendFilter = document.getElementById('trendFilter');
         const progressSection = document.getElementById('progressSection');
         const progressBar = document.getElementById('progressBar');
         const statusMsg = document.getElementById('statusMsg');
@@ -296,11 +435,24 @@
         const emptyState = document.getElementById('emptyState');
         const timerText = document.getElementById('timer');
 
+        const paginationControls = document.getElementById('paginationControls');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const pageInfo = document.getElementById('pageInfo');
+
         let isPolling = false;
+        let currentResults = [];
+        let currentPage = 1;
+        const itemsPerPage = 15;
 
         async function startAnalysis() {
             try {
-                const response = await fetch('/api/analyze', { method: 'POST' });
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trend_filter: trendFilter.checked })
+                });
+
                 if (response.ok) {
                     toggleLoading(true);
                     pollStatus();
@@ -361,27 +513,60 @@
         }
 
         function renderTable(results) {
-            const allData = [...results.matches];
-            if (allData.length === 0) {
-                allData.push(...results.top_spikes.slice(0, 10)); // Show top 10 if no matches
+            currentResults = [...results.matches];
+            if (currentResults.length === 0) {
+                currentResults.push(...results.top_spikes.slice(0, 50)); // Show top 50 if no matches
             }
 
-            if (allData.length > 0) {
+            if (currentResults.length > 0) {
                 emptyState.style.display = 'none';
-                resultsBody.innerHTML = allData.map(item => `
-                    <tr>
-                        <td style="font-weight: 600;">${item.symbol}</td>
-                        <td>
-                            <span class="ratio-tag ${getRatioClass(item.ratio)}">
-                                ${item.ratio.toFixed(2)}x
-                            </span>
-                        </td>
-                        <td>₹ ${(item.avg_turnover / 100000).toFixed(2)} Lakhs</td>
-                        <td style="color: #94a3b8;">${item.current_vol.toLocaleString()}</td>
-                    </tr>
-                `).join('');
+                currentPage = 1; // Reset to first page on new data
+                updateTableDisplay();
             }
         }
+
+        function updateTableDisplay() {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageData = currentResults.slice(startIndex, endIndex);
+            const totalPages = Math.ceil(currentResults.length / itemsPerPage) || 1;
+
+            resultsBody.innerHTML = pageData.map(item => `
+                <tr>
+                    <td style="font-weight: 600;">${item.symbol}</td>
+                    <td>
+                        <span class="ratio-tag ${getRatioClass(item.ratio)}">
+                            ${item.ratio.toFixed(2)}x
+                        </span>
+                    </td>
+                    <td>₹ ${(item.avg_turnover / 100000).toFixed(2)} Lakhs</td>
+                    <td style="color: #94a3b8;">${item.current_vol.toLocaleString()}</td>
+                </tr>
+            `).join('');
+
+            // Update pagination controls
+            paginationControls.style.display = currentResults.length > itemsPerPage ? 'flex' : 'none';
+            pageInfo.innerText = `Page ${currentPage} of ${totalPages}`;
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages;
+        }
+
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                updateTableDisplay();
+                window.scrollTo({ top: document.querySelector('.card').offsetTop - 100, behavior: 'smooth' });
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            const totalPages = Math.ceil(currentResults.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                updateTableDisplay();
+                window.scrollTo({ top: document.querySelector('.card').offsetTop - 100, behavior: 'smooth' });
+            }
+        });
 
         function getRatioClass(ratio) {
             if (ratio >= 2.0) return 'ratio-high';
@@ -395,4 +580,5 @@
         pollStatus();
     </script>
 </body>
+
 </html>

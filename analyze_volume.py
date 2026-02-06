@@ -7,8 +7,16 @@ import datetime
 import time
 import sys
 import io
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Global cache for symbols to save startup time
+_SYMBOL_CACHE = []
 
 def get_nifty_all_symbols():
+    global _SYMBOL_CACHE
+    if _SYMBOL_CACHE:
+        return _SYMBOL_CACHE
+        
     print("Fetching ALL NSE equity symbols...")
     try:
         url = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
@@ -16,11 +24,12 @@ def get_nifty_all_symbols():
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
         }
-        response = requests.get(url, headers=headers, timeout=12)
+        response = requests.get(url, headers=headers, timeout=5)
         if response.status_code == 200:
             df = pd.read_csv(io.StringIO(response.text))
-            symbols = df['SYMBOL'].tolist()
-            return [s for s in symbols if isinstance(s, str) and len(s) > 0]
+            symbols = [s for s in df['SYMBOL'].tolist() if isinstance(s, str) and len(s) > 0]
+            _SYMBOL_CACHE = symbols
+            return symbols
     except Exception as e:
         print(f"Error fetching symbols: {e}")
     
@@ -29,7 +38,7 @@ def get_nifty_all_symbols():
 # LIQUIDITY SETTINGS
 MIN_AVG_5MIN_TURNOVER = 500000  # ₹5,00,000
 
-def analyze_volumes(progress_callback=None):
+def analyze_volumes(progress_callback=None, check_trend=False):
     results = {
         'matches': [],
         'top_spikes': [],
@@ -38,50 +47,68 @@ def analyze_volumes(progress_callback=None):
     }
     
     symbols = get_nifty_all_symbols()
-    
-    # PERFORMANCE OPTIMIZATION: Larger batches reduce request overheads
-    BATCH_SIZE = 50 
-    MAX_SYMBOLS = 2000
+    MAX_SYMBOLS = 2200
     symbols = symbols[:MAX_SYMBOLS]
     total_count = len(symbols)
     
-    all_processed_stats = []
+    # RESOURCE CONTROL: We use a fixed number of workers and disable yfinance internal threads
+    # to avoid "can't start new thread" errors (OS limit exhaustion).
+    CHUNK_SIZE = 100 
+    chunks = [symbols[i:i + CHUNK_SIZE] for i in range(0, total_count, CHUNK_SIZE)]
     
-    for i in range(0, total_count, BATCH_SIZE):
-        batch = symbols[i:i+BATCH_SIZE]
-        yf_tickers = [f"{sym}.NS" for sym in batch]
-        
-        if progress_callback:
-            progress_callback(i, total_count, f"Analyzing {i}-{min(i+BATCH_SIZE, total_count)}...")
+    all_processed_stats = []
+    processed_count = 0
+    
+    def process_batch(batch_symbols):
+        batch_results = []
+        batch_matches = []
+        yf_tickers = [f"{sym}.NS" for sym in batch_symbols]
         
         try:
-            # group_by='ticker' is faster for large batches
-            data = yf.download(yf_tickers, period="5d", interval="5m", group_by='ticker', progress=False, threads=True)
+            # IMPORTANT: Set threads=False here because we are already parallelized by ThreadPoolExecutor.
+            # This prevents the "can't start new thread" error on macOS/Linux.
+            data = yf.download(yf_tickers, period="5d", interval="5m", group_by='ticker', progress=False, threads=False, timeout=10)
             
             if not data.empty:
-                for ticker in batch:
+                for ticker in batch_symbols:
                     try:
                         yf_ticker = f"{ticker}.NS"
-                        ticker_data = data[yf_ticker] if len(batch) > 1 else data
+                        ticker_data = data[yf_ticker] if isinstance(data.columns, pd.MultiIndex) else data
                         
-                        res = process_single_ticker(ticker, ticker_data)
+                        res = process_single_ticker(ticker, ticker_data, check_trend=check_trend)
                         if res:
-                            all_processed_stats.append(res)
+                            batch_results.append(res)
                             if res['ratio'] > 2.0:
-                                results['matches'].append(res)
+                                batch_matches.append(res)
                     except:
                         continue
-            
-            # SMARTER DELAY: Half-second sleep is usually enough for these batch sizes
-            time.sleep(0.5) 
-                        
         except Exception as e:
-            if "Rate limited" in str(e):
-                if progress_callback:
-                    progress_callback(i, total_count, "Rate limited. Waiting 15s...")
-                time.sleep(15)
-            else:
-                time.sleep(1)
+            pass # Keep moving on network errors
+            
+        return batch_results, batch_matches
+
+    # Use 10 workers: 2200 stocks / 100 per batch = 22 batches. 
+    # With 10 workers, we finish in ~2-3 rounds of networking (~10-15s total).
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_chunk = {executor.submit(process_batch, chunk): chunk for chunk in chunks}
+        
+        for future in as_completed(future_to_chunk):
+            results_chunk, matches_chunk = future.result()
+            all_processed_stats.extend(results_chunk)
+            results['matches'].extend(matches_chunk)
+            
+            processed_count += len(future_to_chunk[future])
+            if progress_callback:
+                progress_callback(processed_count, total_count, f"Processing: {processed_count}/{total_count}")
+
+    # Sort and finalize
+    results['matches'].sort(key=lambda x: x['ratio'], reverse=True)
+    all_processed_stats.sort(key=lambda x: x['ratio'], reverse=True)
+    results['top_spikes'] = all_processed_stats[:20]
+    results['total_scanned'] = total_count
+    results['status'] = 'complete'
+    
+    return results
 
     # Sort results
     results['matches'].sort(key=lambda x: x['ratio'], reverse=True)
@@ -93,7 +120,7 @@ def analyze_volumes(progress_callback=None):
     return results
 
 
-def process_single_ticker(symbol, df):
+def process_single_ticker(symbol, df, check_trend=False):
     if df.empty or 'Volume' not in df.columns or 'Close' not in df.columns:
         return None
         
@@ -111,6 +138,16 @@ def process_single_ticker(symbol, df):
         return None
         
     vol_series = clean_df['Volume']
+    
+    # Volume Trend Check (Last 15 minutes = last 3 candles of 5 mins each)
+    if check_trend:
+        if len(vol_series) < 3:
+            return None
+        # Check if volume is strictly increasing: Vol(t-2) < Vol(t-1) < Vol(t)
+        v1, v2, v3 = vol_series.iloc[-3], vol_series.iloc[-2], vol_series.iloc[-1]
+        if not (v1 < v2 < v3):
+            return None
+
     current_vol = float(vol_series.iloc[-1])
     avg_vol = float(vol_series.mean())
     

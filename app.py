@@ -17,7 +17,7 @@ analysis_state = {
     'start_time': None
 }
 
-def run_analysis_task():
+def run_analysis_task(check_trend=False):
     global analysis_state
     
     def progress_update(current, total, message):
@@ -30,7 +30,7 @@ def run_analysis_task():
         analysis_state['start_time'] = time.time()
         analysis_state['message'] = "Starting analysis..."
         
-        results = analyze_volume.analyze_volumes(progress_callback=progress_update)
+        results = analyze_volume.analyze_volumes(progress_callback=progress_update, check_trend=check_trend)
         
         analysis_state['last_results'] = results
         analysis_state['message'] = "Analysis Complete"
@@ -48,15 +48,19 @@ def start_analyze():
     if analysis_state['running']:
         return jsonify({'error': 'Analysis already in progress'}), 400
     
+    data = request.json or {}
+    check_trend = data.get('trend_filter', False)
+    
     # Reset stats
     analysis_state['progress'] = 0
     analysis_state['total'] = 0
     analysis_state['last_results'] = None
     
-    thread = threading.Thread(target=run_analysis_task)
+    thread = threading.Thread(target=run_analysis_task, args=(check_trend,))
     thread.start()
     
     return jsonify({'status': 'started'})
+
 
 @app.route('/api/status')
 def get_status():

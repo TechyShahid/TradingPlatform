@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NSE Volume Spike Radar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0b10;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+            --text: #e2e8f0;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            background-image:
+                radial-gradient(circle at 20% 20%, #1e1b4b 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, #312e81 0%, transparent 40%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header & Glassmorphism */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        /* Toggle Switch Style */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #334155;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--accent);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+
+        .toggle-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #94a3b8;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Button Style */
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px var(--accent-glow);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--accent-glow);
+            filter: brightness(1.1);
+        }
+
+        .btn:disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Progress Section */
+        .progress-card {
+            background: var(--glass);
+            padding: 1.5rem;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 2rem;
+            display: none;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .progress-bar-bg {
+            background: rgba(255, 255, 255, 0.05);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            background: linear-gradient(to right, var(--accent), #c084fc);
+            height: 100%;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--glass);
+            padding: 1.5rem;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 0.2rem;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Table Section */
+        .card {
+            background: var(--glass);
+            border-radius: 24px;
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.2);
+            text-align: left;
+            padding: 1.2rem 1.5rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            font-size: 1rem;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .ratio-tag {
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-block;
+        }
+
+        .ratio-high {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .ratio-mid {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .ratio-low {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        /* Pagination Styles */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            background: rgba(0, 0, 0, 0.1);
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .page-info {
+            font-size: 0.9rem;
+            color: #94a3b8;
+        }
+
+        .btn-page {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            border: 1px solid var(--glass-border);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .btn-page:hover:not(:disabled) {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-page:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .loader {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Empty State */
+        .empty-state {
+            padding: 4rem;
+            text-align: center;
+            color: #64748b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>Volume Spike Radar</h1>
+                <p style="color: #64748b; font-size: 0.9rem;">NSE Intraday Scanner (5-Min Vol vs 5-Day Avg)</p>
+            </div>
+            <div class="header-controls">
+                <div class="toggle-container">
+                    <span class="toggle-label">15m Trend Filter</span>
+                    <label class="switch">
+                        <input type="checkbox" id="trendFilter">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <button id="fetchBtn" class="btn">
+                    <span id="btnIcon">⚡</span>
+                    <span id="btnText">Fetch Latest Data</span>
+                </button>
+            </div>
+        </header>
+
+        <section id="progressSection" class="progress-card">
+            <div class="progress-header">
+                <span id="statusMsg">Initializing...</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar-bg">
+                <div id="progressBar" class="progress-bar-fill"></div>
+            </div>
+            <p id="timer" style="margin-top: 0.8rem; font-size: 0.8rem; color: #64748b;"></p>
+        </section>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span id="statMatches" class="stat-value">0</span>
+                <span class="stat-label">> 2x Spikes</span>
+            </div>
+            <div class="stat-card">
+                <span id="statScanned" class="stat-value">0</span>
+                <span class="stat-label">Stocks Scanned</span>
+            </div>
+            <div class="stat-card">
+                <span id="statThreshold" class="stat-value">₹5L</span>
+                <span class="stat-label">Min Liquidity</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Stock Symbol</th>
+                            <th>Volume Ratio</th>
+                            <th>5m Avg Turnover</th>
+                            <th>Current 5m Vol</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody">
+                        <!-- Data will be injected here -->
+                    </tbody>
+                </table>
+                <div id="emptyState" class="empty-state">
+                    Click "Fetch Latest Data" to start scanning the market.
+                </div>
+            </div>
+            <div class="pagination" id="paginationControls" style="display: none;">
+                <button id="prevBtn" class="btn-page" disabled>Previous</button>
+                <span id="pageInfo" class="page-info">Page 1 of 1</span>
+                <button id="nextBtn" class="btn-page" disabled>Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fetchBtn = document.getElementById('fetchBtn');
+        const btnText = document.getElementById('btnText');
+        const trendFilter = document.getElementById('trendFilter');
+        const progressSection = document.getElementById('progressSection');
+        const progressBar = document.getElementById('progressBar');
+        const statusMsg = document.getElementById('statusMsg');
+        const progressPercent = document.getElementById('progressPercent');
+        const resultsBody = document.getElementById('resultsBody');
+        const emptyState = document.getElementById('emptyState');
+        const timerText = document.getElementById('timer');
+
+        const paginationControls = document.getElementById('paginationControls');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const pageInfo = document.getElementById('pageInfo');
+
+        let isPolling = false;
+        let currentResults = [];
+        let currentPage = 1;
+        const itemsPerPage = 15;
+
+        const getApiUrl = (path) => {
+            const base = localStorage.getItem('VITE_API_URL') || '';
+            // If base ends with /api, we use it. If not, we append /api.
+            const apiBase = base.endsWith('/api') ? base : (base ? `${base}/api` : '/api');
+            return `${apiBase}${path}`;
+        };
+
+        async function startAnalysis() {
+            try {
+                const response = await fetch(getApiUrl('/analyze'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trend_filter: trendFilter.checked })
+                });
+
+                if (response.ok) {
+                    toggleLoading(true);
+                    pollStatus();
+                } else {
+                    const err = await response.json();
+                    alert(err.error || 'Failed to start analysis');
+                }
+            } catch (err) {
+                alert('Connection Error: Is the server running?');
+            }
+        }
+
+        async function pollStatus() {
+            if (isPolling) return;
+            isPolling = true;
+
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch(getApiUrl('/status'));
+                    const data = await response.json();
+
+                    updateUI(data);
+
+                    if (!data.running) {
+                        clearInterval(interval);
+                        isPolling = false;
+                        toggleLoading(false);
+                    }
+                } catch (err) {
+                    console.error('Polling error:', err);
+                }
+            }, 1500);
+        }
+
+        function toggleLoading(active) {
+            fetchBtn.disabled = active;
+            btnText.innerText = active ? 'Scanning Market...' : 'Fetch Latest Data';
+            progressSection.style.display = active ? 'block' : 'none';
+        }
+
+        function updateUI(data) {
+            // Update Progress
+            if (data.total > 0) {
+                const percent = Math.round((data.progress / data.total) * 100);
+                progressBar.style.width = percent + '%';
+                progressPercent.innerText = percent + '%';
+            }
+            statusMsg.innerText = data.message;
+            timerText.innerText = `Elapsed: ${data.elapsed}s`;
+
+            // Update Stats
+            if (data.results) {
+                document.getElementById('statMatches').innerText = data.results.matches.length;
+                document.getElementById('statScanned').innerText = data.results.total_scanned;
+
+                renderTable(data.results);
+            }
+        }
+
+        function renderTable(results) {
+            currentResults = [...results.matches];
+            if (currentResults.length === 0) {
+                currentResults.push(...results.top_spikes.slice(0, 50)); // Show top 50 if no matches
+            }
+
+            if (currentResults.length > 0) {
+                emptyState.style.display = 'none';
+                currentPage = 1; // Reset to first page on new data
+                updateTableDisplay();
+            }
+        }
+
+        function updateTableDisplay() {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const pageData = currentResults.slice(startIndex, endIndex);
+            const totalPages = Math.ceil(currentResults.length / itemsPerPage) || 1;
+
+            resultsBody.innerHTML = pageData.map(item => `
+                <tr>
+                    <td style="font-weight: 600;">${item.symbol}</td>
+                    <td>
+                        <span class="ratio-tag ${getRatioClass(item.ratio)}">
+                            ${item.ratio.toFixed(2)}x
+                        </span>
+                    </td>
+                    <td>₹ ${(item.avg_turnover / 100000).toFixed(2)} Lakhs</td>
+                    <td style="color: #94a3b8;">${item.current_vol.toLocaleString()}</td>
+                </tr>
+            `).join('');
+
+            // Update pagination controls
+            paginationControls.style.display = currentResults.length > itemsPerPage ? 'flex' : 'none';
+            pageInfo.innerText = `Page ${currentPage} of ${totalPages}`;
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages;
+        }
+
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                updateTableDisplay();
+                window.scrollTo({ top: document.querySelector('.card').offsetTop - 100, behavior: 'smooth' });
+            }
+        });
+
+        nextBtn.addEventListener('click', () => {
+            const totalPages = Math.ceil(currentResults.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                updateTableDisplay();
+                window.scrollTo({ top: document.querySelector('.card').offsetTop - 100, behavior: 'smooth' });
+            }
+        });
+
+        function getRatioClass(ratio) {
+            if (ratio >= 2.0) return 'ratio-high';
+            if (ratio >= 1.5) return 'ratio-mid';
+            return 'ratio-low';
+        }
+
+        fetchBtn.addEventListener('click', startAnalysis);
+
+        // Initial status check
+        pollStatus();
+    </script>
+</body>
+
+</html>

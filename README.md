@@ -87,3 +87,38 @@ python3 analyze_volume.py
 - **Auto-Symbol Fetching**: Dynamically fetches all 2200+ NSE symbols.
 - **Performance Optimized**: Uses batch processing and multi-threaded downloads via `yfinance`.
 - **Visual Intensity**: The UI color-codes results based on the spike magnitude.
+
+---
+
+## 🌐 Deployment & Hosting
+
+The application is structured as a React frontend with two backend options (Node.js and Python).
+
+### Frontend (GitHub Pages)
+The React frontend is automatically deployed to GitHub Pages via GitHub Actions when you push to the `main` branch.
+- **Live URL**: `https://TechyShahid.github.io/TradingPlatform/`
+
+### Backend Hosting
+Since GitHub Pages only hosts static content, you must host your backend on a service like **Render**, **Railway**, or **Heroku**.
+
+#### 1. Node.js Backend (Recommended)
+1. Sign up for [Render](https://render.com/).
+2. Create a new **Web Service** and connect this repository.
+3. Use the following settings:
+   - **Environment**: `Node`
+   - **Build Command**: `npm install`
+   - **Start Command**: `node server/index.js`
+4. Set the `PORT` environment variable to `3000`.
+
+#### 2. Python Backend
+1. Sign up for **Render**.
+2. Create a new **Web Service**.
+3. Use the following settings:
+   - **Environment**: `Python`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `python app.py`
+
+#### 3. Connecting Frontend to Backend
+Once your backend is live, update the `VITE_API_URL` environment variable in your GitHub repository secrets (or in your build command) to point to your backend URL:
+- Go to Repository **Settings** > **Secrets and variables** > **Actions**.
+- Add a new repository variable: `VITE_API_URL` = `https://your-backend-url.onrender.com/api`

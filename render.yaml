@@ -1,0 +1,22 @@
+services:
+  # Node.js Backend
+  - type: web
+    name: trading-platform-node
+    env: node
+    buildCommand: npm install
+    startCommand: node server/index.js
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+
+  # Python Backend
+  - type: web
+    name: trading-platform-python
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: PORT
+        value: 8083

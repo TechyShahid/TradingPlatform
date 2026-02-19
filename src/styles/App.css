@@ -108,6 +108,19 @@
     background: var(--color-bg-tertiary);
 }
 
+.secondary-btn {
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--border-color) !important;
+    color: var(--color-accent) !important;
+    margin-left: 8px;
+    font-size: 0.85rem !important;
+}
+
+.secondary-btn:hover {
+    background: var(--color-bg-primary) !important;
+    border-color: var(--color-accent) !important;
+}
+
 .indicators-dropdown {
     position: absolute;
     top: 100%;

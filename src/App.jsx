@@ -3,7 +3,7 @@ import ChartContainer from './components/ChartContainer';
 import Watchlist from './components/Watchlist';
 import { fetchHistoricalData, subscribeToUpdates, startWatchlistPolling, DEFAULT_WATCHLIST, fetchQuote } from './services/dataService';
 import './styles/App.css';
-import { Layout } from 'lucide-react';
+import { Layout, Activity } from 'lucide-react';
 
 function App() {
   const [symbol, setSymbol] = useState('RELIANCE');
@@ -45,6 +45,8 @@ function App() {
   useEffect(() => {
     localStorage.setItem('watchlists', JSON.stringify(watchlists));
     localStorage.setItem('activeWatchlistName', activeWatchlistName);
+    // Also persist API URL for the standalone analyzer.html in public/
+    localStorage.setItem('VITE_API_URL', import.meta.env.VITE_API_URL || 'http://localhost:3000/api');
   }, [watchlists, activeWatchlistName]);
 
   // Load initial chart data
@@ -214,6 +216,15 @@ function App() {
               </div>
             )}
           </div>
+          <a
+            href="/TradingPlatform/analyzer.html"
+            className="menu-btn secondary-btn"
+            title="NSE Volume Spike Radar"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}
+          >
+            <Activity size={18} />
+            Scanner
+          </a>
         </div>
       </header>
 

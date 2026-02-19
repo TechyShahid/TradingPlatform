@@ -101,7 +101,16 @@ The React frontend is automatically deployed to GitHub Pages via GitHub Actions 
 ### Backend Hosting
 Since GitHub Pages only hosts static content, you must host your backend on a service like **Render**, **Railway**, or **Heroku**.
 
-#### 1. Node.js Backend (Recommended)
+### 1. Simple One-Click Deployment (Recommended)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/TechyShahid/TradingPlatform)
+
+1. Click the button above.
+2. Sign in with GitHub.
+3. Click **"Apply"** to deploy both Node.js and Python backends automatically.
+
+### 2. Manual Setup (Alternative)
+If you prefer to set up services manually:
+#### Node.js Backend
 1. Sign up for [Render](https://render.com/).
 2. Create a new **Web Service** and connect this repository.
 3. Use the following settings:
@@ -110,7 +119,7 @@ Since GitHub Pages only hosts static content, you must host your backend on a se
    - **Start Command**: `node server/index.js`
 4. Set the `PORT` environment variable to `3000`.
 
-#### 2. Python Backend
+#### Python Backend
 1. Sign up for **Render**.
 2. Create a new **Web Service**.
 3. Use the following settings:
@@ -122,3 +131,7 @@ Since GitHub Pages only hosts static content, you must host your backend on a se
 Once your backend is live, update the `VITE_API_URL` environment variable in your GitHub repository secrets (or in your build command) to point to your backend URL:
 - Go to Repository **Settings** > **Secrets and variables** > **Actions**.
 - Add a new repository variable: `VITE_API_URL` = `https://your-backend-url.onrender.com/api`
+
+---
+
+![Deployment Verification](/Users/shahidkhan/.gemini/antigravity/brain/c81104dc-d7fd-47ab-8174-e69f1b3fc258/.system_generated/verify_fix_deploymentstatus_check_1771517747124.webp)

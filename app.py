@@ -82,4 +82,4 @@ if __name__ == '__main__':
     import os
     if not os.path.exists('templates'):
         os.makedirs('templates')
-    app.run(debug=True, port=8083) # Using 5002 to avoid port conflicts
+    app.run(debug=True, port=8083, host='0.0.0.0') # Using 0.0.0.0 to allow network access

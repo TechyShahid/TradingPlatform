@@ -446,10 +446,10 @@
         const itemsPerPage = 15;
 
         const getApiUrl = (path) => {
-            const base = localStorage.getItem('VITE_API_URL') || '';
-            // If base ends with /api, we use it. If not, we append /api.
-            const apiBase = base.endsWith('/api') ? base : (base ? `${base}/api` : '/api');
-            return `${apiBase}${path}`;
+            // The analyzer uses the PYTHON backend (Flask), not the Node.js one.
+            const base = localStorage.getItem('PYTHON_API_URL')
+                || 'https://trading-platform-python.onrender.com';
+            return `${base}/api${path}`;
         };
 
         async function startAnalysis() {

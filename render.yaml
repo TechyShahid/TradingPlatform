@@ -2,6 +2,7 @@ services:
   # Node.js Backend
   - type: web
     name: trading-platform-node
+        plan: free
     env: node
     buildCommand: npm install
     startCommand: node server/index.js
@@ -14,6 +15,7 @@ services:
   # Python Backend
   - type: web
     name: trading-platform-python
+        plan: free
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: python app.py

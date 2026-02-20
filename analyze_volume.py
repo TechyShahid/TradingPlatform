@@ -1,4 +1,3 @@
-import requests
 import nselib
 from nselib import capital_market
 import yfinance as yf
@@ -6,34 +5,22 @@ import pandas as pd
 import datetime
 import time
 import sys
-import io
+import symbol_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Global cache for symbols to save startup time
+# In-memory cache for the running process (avoids even the SQLite read on repeat calls)
 _SYMBOL_CACHE = []
 
 def get_nifty_all_symbols():
     global _SYMBOL_CACHE
     if _SYMBOL_CACHE:
         return _SYMBOL_CACHE
-        
-    print("Fetching ALL NSE equity symbols...")
-    try:
-        url = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-        }
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code == 200:
-            df = pd.read_csv(io.StringIO(response.text))
-            symbols = [s for s in df['SYMBOL'].tolist() if isinstance(s, str) and len(s) > 0]
-            _SYMBOL_CACHE = symbols
-            return symbols
-    except Exception as e:
-        print(f"Error fetching symbols: {e}")
-    
-    return ['RELIANCE', 'TCS', 'INFY', 'HDFCBANK', 'ICICIBANK', 'SBIN']
+
+    # Delegates to symbol_cache: downloads only on first run / every Monday,
+    # otherwise reads from local SQLite DB instantly.
+    symbols = symbol_cache.get_symbols()
+    _SYMBOL_CACHE = symbols
+    return symbols
 
 # LIQUIDITY SETTINGS
 MIN_AVG_5MIN_TURNOVER = 500000  # ₹5,00,000

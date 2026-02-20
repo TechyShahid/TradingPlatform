@@ -36,3 +36,6 @@ __pycache__/
 *$py.class
 venv/
 .env
+
+# Cached symbol data
+data/

@@ -345,6 +345,102 @@
             text-align: center;
             color: #64748b;
         }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 1.2rem;
+                gap: 1.2rem;
+                border-radius: 16px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .header-controls {
+                width: 100%;
+                flex-direction: row;
+                /* Keep in one row */
+                align-items: center;
+                justify-content: space-between;
+                gap: 0.5rem;
+            }
+
+            .toggle-container {
+                padding: 0.5rem;
+                gap: 0.4rem;
+            }
+
+            .toggle-label {
+                font-size: 0.75rem;
+                /* Smaller text to fit */
+            }
+
+            .btn {
+                padding: 0.6rem 1rem;
+                font-size: 0.85rem;
+                /* Smaller text to fit */
+                flex: 1;
+                justify-content: center;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+                /* Keep 3 columns */
+                gap: 0.5rem;
+            }
+
+            .stat-card {
+                padding: 1rem 0.5rem;
+                /* Less padding to fit */
+            }
+
+            .stat-value {
+                font-size: 1.2rem;
+                /* Smaller value text */
+            }
+
+            .stat-label {
+                font-size: 0.65rem;
+                /* Smaller label text */
+                letter-spacing: 0;
+            }
+
+            /* Keep table in one row on mobile */
+            th,
+            td {
+                padding: 0.8rem 0.5rem;
+                font-size: 0.75rem;
+                white-space: nowrap;
+            }
+
+            th {
+                font-size: 0.65rem;
+                letter-spacing: 0;
+            }
+
+            .ratio-tag {
+                padding: 0.2rem 0.4rem;
+                font-size: 0.7rem;
+                border-radius: 4px;
+            }
+
+            .pagination {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+
+            .btn-page {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 

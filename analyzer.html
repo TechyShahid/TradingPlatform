@@ -363,6 +363,14 @@
                         <span class="slider"></span>
                     </label>
                 </div>
+                <!-- New toggle for 3% price move filter -->
+                <div class="toggle-container">
+                    <span class="toggle-label">±3% Price Move Filter</span>
+                    <label class="switch">
+                        <input type="checkbox" id="priceMoveFilter">
+                        <span class="slider"></span>
+                    </label>
+                </div>
                 <button id="fetchBtn" class="btn">
                     <span id="btnIcon">⚡</span>
                     <span id="btnText">Fetch Latest Data</span>
@@ -427,6 +435,7 @@
         const fetchBtn = document.getElementById('fetchBtn');
         const btnText = document.getElementById('btnText');
         const trendFilter = document.getElementById('trendFilter');
+        const priceMoveFilter = document.getElementById('priceMoveFilter');
         const progressSection = document.getElementById('progressSection');
         const progressBar = document.getElementById('progressBar');
         const statusMsg = document.getElementById('statusMsg');
@@ -454,10 +463,15 @@
 
         async function startAnalysis() {
             try {
-                const response = await fetch(getApiUrl('/analyze'), {
+                // If price move filter is checked, call the new endpoint, else call the regular endpoint
+                const endpoint = priceMoveFilter.checked ? '/analyze_price_move' : '/analyze';
+
+                const response = await fetch(getApiUrl(endpoint), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ trend_filter: trendFilter.checked })
+                    body: JSON.stringify({
+                        trend_filter: trendFilter.checked
+                    })
                 });
 
                 if (response.ok) {

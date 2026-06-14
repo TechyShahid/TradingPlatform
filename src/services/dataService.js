@@ -42,55 +42,6 @@ export async function fetchHistoricalData(symbol, resolution = '1D') {
 
     console.log(`[DataService] Total candles after merging: ${candles.length}`);
 
-    // Automatic Time-Shift & Price-Normalization:
-    // If the data is old, we shift time AND adjust price to match current live market.
-    if (candles.length > 0) {
-      const lastCandle = candles[candles.length - 1];
-      const now = Math.floor(Date.now() / 1000);
-
-      let applyShift = false;
-      let shiftAmount = 0;
-
-      // Time Shift: If data is more than 2 days old
-      if (now - lastCandle.time > 86400 * 2) {
-        shiftAmount = now - lastCandle.time;
-        console.log(`[DataService] Data appears old. Shifting by ${shiftAmount} seconds.`);
-        candles = candles.map(c => ({ ...c, time: c.time + shiftAmount }));
-        applyShift = true;
-      }
-
-      // Price Normalization
-      // Only if we shifted time (meaning data is old/simulated), let's validate price too.
-      // We fetch the current live quote to find the target price.
-      if (applyShift) {
-        try {
-          const quote = await fetchQuote(symbol);
-          if (quote && quote.price > 0) {
-            // Use the LAST candle's close (before normalization) which corresponds to the old data
-            const lastClose = lastCandle.close;
-            const targetPrice = quote.price;
-
-            // Calculate multiplier to scale the chart to current price
-            const multiplier = targetPrice / lastClose;
-
-            // Only apply if difference is significant (> 0.5%)
-            if (Math.abs(multiplier - 1) > 0.005) {
-              console.log(`[DataService] Normalizing price by factor ${multiplier.toFixed(4)} (Old Close: ${lastClose} -> New Target: ${targetPrice})`);
-              candles = candles.map(c => ({
-                ...c,
-                open: c.open * multiplier,
-                high: c.high * multiplier,
-                low: c.low * multiplier,
-                close: c.close * multiplier
-              }));
-            }
-          }
-        } catch (err) {
-          console.warn("[DataService] Failed to fetch quote for price normalization", err);
-        }
-      }
-    }
-
     // Resample if needed
     if (resolution === '1W') candles = resampleDaily(candles, '1W');
     if (resolution === '1M') candles = resampleDaily(candles, '1M');
@@ -109,37 +60,35 @@ function parseNseDate(dateStr) {
 
   // Check if ISO format (YYYY-MM-DD...)
   if (dateStr.includes('T')) {
-    return new Date(dateStr).getTime() / 1000;
+    const d = new Date(dateStr);
+    // Extracted local Indian day using local methods, NOT UTC methods
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const day = d.getDate();
+    // Force to UTC midnight for charting
+    return Date.UTC(year, month, day) / 1000;
   }
 
-  // Handle "30-Jan-2026"
+  // Common NSE string: "19-Feb-2026" or "19-Feb-2026 15:30:00"
   const months = {
     'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
     'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
   };
-
-  // Split by hyphen or space
   const parts = dateStr.split(/[- ]/);
-  if (parts.length === 3) {
-    // Assume DD-MMM-YYYY
+  if (parts.length >= 3) {
     const day = parseInt(parts[0]);
     const monthStr = parts[1];
     const year = parseInt(parts[2]);
 
     if (months[monthStr] !== undefined && !isNaN(day) && !isNaN(year)) {
-      const d = new Date(year, months[monthStr], day);
-      // Adjust for TZ if needed, but usually local midnight is fine for daily bars
-      // Need to return safe Unix timestamp (seconds)
-      // Use UTC to avoid DST jumps? 
-      // Lightweight charts likes UTC.
-      // Let's create UTC date
-      const utcDate = Date.UTC(year, months[monthStr], day);
-      return utcDate / 1000;
+      // Force to UTC midnight
+      return Date.UTC(year, months[monthStr], day) / 1000;
     }
   }
 
-  // Fallback
-  return new Date(dateStr).getTime() / 1000;
+  // Fallback (try to extract local and force UTC)
+  const d = new Date(dateStr);
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 1000;
 }
 
 // Fetch single quote for watchlist
@@ -166,6 +115,9 @@ export async function fetchQuote(symbol) {
       }
     }
 
+    // Parse intraday high low if available
+    const intraDayHighLow = priceInfo.intraDayHighLow || {};
+
     return {
       symbol: metadata.symbol || symbol,
       price: priceInfo.lastPrice || 0,
@@ -173,8 +125,10 @@ export async function fetchQuote(symbol) {
       changePercent: priceInfo.pChange || 0,
       previousClose: priceInfo.previousClose || 0,
       open: priceInfo.open || 0,
+      high: intraDayHighLow.max || priceInfo.lastPrice || 0,
+      low: intraDayHighLow.min || priceInfo.lastPrice || 0,
       close: priceInfo.lastPrice || 0,
-      volume: 0,
+      volume: 0, // Quote endpoint typically omits full total intraday volume here, relying on list
       time: timestamp
     };
   } catch (error) {
@@ -194,8 +148,8 @@ export function subscribeToUpdates(symbol, callback) {
       callback({
         time: quote.time,
         open: quote.open,
-        high: Math.max(quote.open, quote.price),
-        low: Math.min(quote.open, quote.price),
+        high: quote.high,
+        low: quote.low,
         close: quote.price,
         volume: quote.volume
       });

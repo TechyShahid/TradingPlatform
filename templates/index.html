@@ -33,11 +33,12 @@
                 radial-gradient(circle at 80% 80%, #312e81 0%, transparent 40%);
             color: var(--text);
             min-height: 100vh;
-            padding: 2rem;
+            padding: 1rem 2rem;
+            font-size: 0.9rem;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 95%;
             margin: 0 auto;
         }
 
@@ -46,14 +47,14 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 2rem;
+            padding: 1rem 2rem;
             background: var(--glass);
             backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            margin-bottom: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            gap: 2rem;
+            border-radius: 16px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            gap: 1.5rem;
             flex-wrap: wrap;
         }
 
@@ -127,7 +128,7 @@
         }
 
         h1 {
-            font-size: 1.8rem;
+            font-size: 1.4rem;
             font-weight: 600;
             background: linear-gradient(to right, #818cf8, #c084fc);
             -webkit-background-clip: text;
@@ -140,9 +141,10 @@
             background: var(--accent);
             color: white;
             border: none;
-            padding: 0.8rem 1.5rem;
-            border-radius: 12px;
+            padding: 0.6rem 1.2rem;
+            border-radius: 10px;
             font-weight: 600;
+            font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px var(--accent-glow);
@@ -246,8 +248,8 @@
         th {
             background: rgba(0, 0, 0, 0.2);
             text-align: left;
-            padding: 1.2rem 1.5rem;
-            font-size: 0.85rem;
+            padding: 0.6rem 1rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 1px;
             color: #94a3b8;
@@ -255,9 +257,9 @@
         }
 
         td {
-            padding: 1.2rem 1.5rem;
+            padding: 0.6rem 1rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-            font-size: 1rem;
+            font-size: 0.85rem;
         }
 
         tr:hover {
@@ -265,10 +267,10 @@
         }
 
         .ratio-tag {
-            padding: 0.4rem 0.8rem;
-            border-radius: 8px;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.75rem;
             display: inline-block;
         }
 
@@ -459,10 +461,24 @@
                         <span class="slider"></span>
                     </label>
                 </div>
+                <!-- New toggle for 3% price move filter -->
+                <div class="toggle-container">
+                    <span class="toggle-label">±3% Price Move Filter</span>
+                    <label class="switch">
+                        <input type="checkbox" id="priceMoveFilter">
+                        <span class="slider"></span>
+                    </label>
+                </div>
                 <button id="fetchBtn" class="btn">
                     <span id="btnIcon">⚡</span>
                     <span id="btnText">Fetch Latest Data</span>
                 </button>
+                <a href="/growth" class="btn" style="background: linear-gradient(135deg, #8b5cf6, #d946ef); text-decoration: none;">
+                    🚀 Growth Dashboard
+                </a>
+                <a href="/deals" class="btn" style="background: linear-gradient(135deg, #3b82f6, #06b6d4); text-decoration: none;">
+                    🤝 Recent Deals
+                </a>
             </div>
         </header>
 
@@ -523,6 +539,7 @@
         const fetchBtn = document.getElementById('fetchBtn');
         const btnText = document.getElementById('btnText');
         const trendFilter = document.getElementById('trendFilter');
+        const priceMoveFilter = document.getElementById('priceMoveFilter');
         const progressSection = document.getElementById('progressSection');
         const progressBar = document.getElementById('progressBar');
         const statusMsg = document.getElementById('statusMsg');
@@ -543,10 +560,15 @@
 
         async function startAnalysis() {
             try {
-                const response = await fetch('/api/analyze', {
+                // If price move filter is checked, call the new endpoint, else call the regular endpoint
+                const endpoint = priceMoveFilter.checked ? '/api/analyze_price_move' : '/api/analyze';
+
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ trend_filter: trendFilter.checked })
+                    body: JSON.stringify({
+                        trend_filter: trendFilter.checked
+                    })
                 });
 
                 if (response.ok) {

@@ -25,7 +25,7 @@ def get_nifty_all_symbols():
 # LIQUIDITY SETTINGS
 MIN_AVG_5MIN_TURNOVER = 500000  # ₹5,00,000
 
-def analyze_volumes(progress_callback=None, check_trend=False):
+def analyze_volumes(progress_callback=None, check_trend=False, check_price_move=False):
     results = {
         'matches': [],
         'top_spikes': [],
@@ -62,7 +62,7 @@ def analyze_volumes(progress_callback=None, check_trend=False):
                         yf_ticker = f"{ticker}.NS"
                         ticker_data = data[yf_ticker] if isinstance(data.columns, pd.MultiIndex) else data
                         
-                        res = process_single_ticker(ticker, ticker_data, check_trend=check_trend)
+                        res = process_single_ticker(ticker, ticker_data, check_trend=check_trend, check_price_move=check_price_move)
                         if res:
                             batch_results.append(res)
                             if res['ratio'] > 2.0:
@@ -107,7 +107,7 @@ def analyze_volumes(progress_callback=None, check_trend=False):
     return results
 
 
-def process_single_ticker(symbol, df, check_trend=False):
+def process_single_ticker(symbol, df, check_trend=False, check_price_move=False):
     if df.empty or 'Volume' not in df.columns or 'Close' not in df.columns:
         return None
         
@@ -133,6 +133,17 @@ def process_single_ticker(symbol, df, check_trend=False):
         # Check if volume is strictly increasing: Vol(t-2) < Vol(t-1) < Vol(t)
         v1, v2, v3 = vol_series.iloc[-3], vol_series.iloc[-2], vol_series.iloc[-1]
         if not (v1 < v2 < v3):
+            return None
+
+    if check_price_move:
+        current_day_start = clean_df.index[-1].normalize()
+        prev_days_df = clean_df[clean_df.index.normalize() < current_day_start]
+        if prev_days_df.empty:
+            return None
+        prev_close = float(prev_days_df['Close'].iloc[-1])
+        current_close = float(clean_df['Close'].iloc[-1])
+        price_change_pct = abs(current_close - prev_close) / prev_close
+        if price_change_pct < 0.03:
             return None
 
     current_vol = float(vol_series.iloc[-1])

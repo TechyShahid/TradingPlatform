@@ -39,3 +39,5 @@ venv/
 
 # Cached symbol data
 data/
+
+clipboard-history-plugin/

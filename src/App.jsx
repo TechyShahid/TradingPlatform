@@ -9,6 +9,7 @@ function App() {
   const [symbol, setSymbol] = useState('RELIANCE');
   const [chartData, setChartData] = useState([]);
   const [resolution, setResolution] = useState('1D');
+  const lastCandleRef = useRef(null);
 
   // Advanced Watchlist State
   const [watchlists, setWatchlists] = useState(() => {
@@ -52,16 +53,61 @@ function App() {
   // Load initial chart data
   useEffect(() => {
     setChartData([]);
+    lastCandleRef.current = null;
     fetchHistoricalData(symbol, resolution).then(data => {
       setChartData(data);
+      if (data && data.length > 0) {
+        lastCandleRef.current = data[data.length - 1]; // Store the last historical candle
+      }
     });
   }, [symbol, resolution]);
 
   // Subscribe to live updates for Chart
   useEffect(() => {
-    const unsubscribe = subscribeToUpdates(symbol, (newCandle) => {
-      if (chartRef.current) {
-        chartRef.current.update(newCandle);
+    const unsubscribe = subscribeToUpdates(symbol, (newTick) => {
+      if (chartRef.current && lastCandleRef.current) {
+
+        // Lightweight Charts 1D resolution expects Midnight UTC timestamps
+        // Evaluate if this newTick belongs to the SAME day or a NEW day
+        const lastCandleDate = new Date(lastCandleRef.current.time * 1000);
+        const newTickDate = new Date(newTick.time * 1000);
+
+        const isSameDay = lastCandleDate.getUTCFullYear() === newTickDate.getUTCFullYear() &&
+          lastCandleDate.getUTCMonth() === newTickDate.getUTCMonth() &&
+          lastCandleDate.getUTCDate() === newTickDate.getUTCDate();
+
+        let mergedCandle;
+
+        if (isSameDay) {
+          // STILL CURRENT DAY: update the existing candle's bounds
+          mergedCandle = {
+            time: lastCandleRef.current.time,      // Keep exact chart interval tick time (Midnight UTC)
+            open: lastCandleRef.current.open,      // Keep original open
+            high: Math.max(lastCandleRef.current.high, newTick.high), // Update high
+            low: Math.min(lastCandleRef.current.low, newTick.low),   // Update low
+            close: newTick.close,                  // Update current trailing close
+            volume: newTick.volume > 0 ? newTick.volume : lastCandleRef.current.volume
+          };
+        } else {
+          // NEW TRADING DAY: Start a fresh candle
+          // Snap the live tick to Midnight UTC for Lightweight Charts compatibility
+          const midnightUTC = Date.UTC(newTickDate.getUTCFullYear(), newTickDate.getUTCMonth(), newTickDate.getUTCDate()) / 1000;
+
+          mergedCandle = {
+            time: midnightUTC,
+            open: newTick.open || newTick.close,
+            high: newTick.high || newTick.close,
+            low: newTick.low || newTick.close,
+            close: newTick.close,
+            volume: newTick.volume || 0
+          };
+        }
+
+        // Update the chart
+        chartRef.current.update(mergedCandle);
+
+        // Save back for next tick
+        lastCandleRef.current = mergedCandle;
       }
     });
     return () => unsubscribe();

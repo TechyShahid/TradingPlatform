@@ -84,7 +84,7 @@
             border-radius: 16px;
             padding: 0 1.5rem 1.5rem 1.5rem;
             max-height: 75vh;
-            overflow-y: auto;
+            overflow: auto;
         }
 
         /* Custom Scrollbar */
@@ -279,40 +279,36 @@
                 <div id="ai-loading" class="loading">
                     Llama 3 is analyzing all market data. This may take 15-30 seconds...
                 </div>
-                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
-                    <table id="ai-table" style="display: none;">
-                        <thead>
-                            <tr>
-                                <th>Symbol</th>
-                                <th>Company Name</th>
-                                <th>Predicted Growth</th>
-                                <th>AI Reasoning</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ai-body"></tbody>
-                    </table>
-                </div>
+                <table id="ai-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Company Name</th>
+                            <th>Predicted Growth</th>
+                            <th>AI Reasoning</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ai-body"></tbody>
+                </table>
             </div>
             
             <!-- Block Deals Panel -->
             <div class="panel">
                 <h2>Recent Block Deals</h2>
                 <div id="block-loading" class="loading">Loading block deals...</div>
-                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
-                    <table id="block-table" style="display: none;">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Symbol</th>
-                                <th>Client Name</th>
-                                <th>Action</th>
-                                <th>Quantity</th>
-                                <th>Price</th>
-                            </tr>
-                        </thead>
-                        <tbody id="block-body"></tbody>
-                    </table>
-                </div>
+                <table id="block-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Symbol</th>
+                            <th>Client Name</th>
+                            <th>Action</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody id="block-body"></tbody>
+                </table>
                 <div id="block-pagination" class="pagination" style="display: none;">
                     <button id="block-prev" onclick="changePage('block', -1)">Previous</button>
                     <div id="block-page-info" class="page-info"></div>
@@ -324,21 +320,19 @@
             <div class="panel">
                 <h2>Recent Bulk Deals</h2>
                 <div id="bulk-loading" class="loading">Loading bulk deals...</div>
-                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
-                    <table id="bulk-table" style="display: none;">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Symbol</th>
-                                <th>Client Name</th>
-                                <th>Action</th>
-                                <th>Quantity</th>
-                                <th>Price</th>
-                            </tr>
-                        </thead>
-                        <tbody id="bulk-body"></tbody>
-                    </table>
-                </div>
+                <table id="bulk-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Symbol</th>
+                            <th>Client Name</th>
+                            <th>Action</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bulk-body"></tbody>
+                </table>
                 <div id="bulk-pagination" class="pagination" style="display: none;">
                     <button id="bulk-prev" onclick="changePage('bulk', -1)">Previous</button>
                     <div id="bulk-page-info" class="page-info"></div>

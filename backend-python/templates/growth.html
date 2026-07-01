@@ -84,7 +84,7 @@
             border-radius: 16px;
             padding: 0 1.5rem 1.5rem 1.5rem;
             max-height: 75vh;
-            overflow-y: auto;
+            overflow: auto;
         }
 
         /* Custom Scrollbar */
@@ -278,57 +278,51 @@
                 <div id="ai-loading" class="loading">
                     Llama 3 is analyzing all market data (Deals + Fundamentals). This may take 15-30 seconds...
                 </div>
-                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
-                    <table id="ai-table" style="display: none;">
-                        <thead>
-                            <tr>
-                                <th>Symbol</th>
-                                <th>Company Name</th>
-                                <th>Predicted Growth</th>
-                                <th>AI Reasoning</th>
-                            </tr>
-                        </thead>
-                        <tbody id="ai-body"></tbody>
-                    </table>
-                </div>
+                <table id="ai-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Company Name</th>
+                            <th>Predicted Growth</th>
+                            <th>AI Reasoning</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ai-body"></tbody>
+                </table>
             </div>
             
             <!-- Compounders Panel -->
             <div class="panel" id="comp-panel" style="border-color: rgba(16, 185, 129, 0.4);">
                 <h2 style="color: #34d399;">👑 3-Year Consistent Compounders (>10% YoY)</h2>
                 <div id="comp-loading" class="loading">Fetching consistent compounders...</div>
-                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
-                    <table id="comp-table" style="display: none;">
-                        <thead>
-                            <tr>
-                                <th>Symbol</th>
-                                <th>3-Year Avg Growth</th>
-                                <th>AI Driving Factor Analysis</th>
-                            </tr>
-                        </thead>
-                        <tbody id="comp-body"></tbody>
-                    </table>
-                </div>
+                <table id="comp-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>3-Year Avg Growth</th>
+                            <th>AI Driving Factor Analysis</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comp-body"></tbody>
+                </table>
             </div>
 
             <!-- Fundamentals Panel -->
             <div class="panel">
                 <h2>Fundamental Growth Stocks (YoY > 10%)</h2>
                 <div id="fund-loading" class="loading">Analyzing fundamentals...</div>
-                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
-                    <table id="fund-table" style="display: none;">
-                        <thead>
-                            <tr>
-                                <th>Symbol</th>
-                                <th>Revenue Growth</th>
-                                <th>Profit Growth</th>
-                                <th>Latest Revenue</th>
-                                <th>Latest Net Income</th>
-                            </tr>
-                        </thead>
-                        <tbody id="fund-body"></tbody>
-                    </table>
-                </div>
+                <table id="fund-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Revenue Growth</th>
+                            <th>Profit Growth</th>
+                            <th>Latest Revenue</th>
+                            <th>Latest Net Income</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fund-body"></tbody>
+                </table>
                 <div id="fund-pagination" class="pagination" style="display: none;">
                     <button id="fund-prev" onclick="changeFundPage(-1)">Previous</button>
                     <div id="fund-page-info" class="page-info"></div>
@@ -340,19 +334,17 @@
             <div class="panel">
                 <h2>Institutional Activity (Multiple Bulk/Block BUYS)</h2>
                 <div id="deals-loading" class="loading">Analyzing institutional deals...</div>
-                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
-                    <table id="deals-table" style="display: none;">
-                        <thead>
-                            <tr>
-                                <th>Symbol</th>
-                                <th>Company Name</th>
-                                <th>Total Institutional Buys</th>
-                                <th>Total Quantity Bought</th>
-                            </tr>
-                        </thead>
-                        <tbody id="deals-body"></tbody>
-                    </table>
-                </div>
+                <table id="deals-table" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Company Name</th>
+                            <th>Total Institutional Buys</th>
+                            <th>Total Quantity Bought</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deals-body"></tbody>
+                </table>
                 <div id="deals-pagination" class="pagination" style="display: none;">
                     <button id="deals-prev" onclick="changeDealsPage(-1)">Previous</button>
                     <div id="deals-page-info" class="page-info"></div>

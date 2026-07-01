@@ -281,18 +281,70 @@ def background_news_crawler_task():
         except Exception as e:
             print(f"[News Crawler Thread] Error during scheduled crawl: {e}")
 
+def background_seeding_task():
+    print("[Database Seeder] Checking database status...")
+    try:
+        conn = database.get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM bulk_deals")
+        count = cur.fetchone()[0]
+        conn.close()
+    except Exception as e:
+        print(f"[Database Seeder] Error checking database: {e}")
+        count = 0
+
+    if count == 0:
+        print("[Database Seeder] Database is empty. Starting background seeding...")
+        
+        # 1. Fetch bulk/block deals
+        try:
+            import fetch_nse_deals
+            print("[Database Seeder] Fetching bulk and block deals (1M period)...")
+            fetch_nse_deals.fetch_and_store_deals(period="1M")
+        except Exception as e:
+            print(f"[Database Seeder] Error fetching deals: {e}")
+
+        # 2. Fetch fundamentals for default watchlists
+        try:
+            import fetch_fundamentals
+            print("[Database Seeder] Fetching fundamentals for default watchlist...")
+            default_symbols = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK"]
+            fetch_fundamentals.fetch_fundamentals(default_symbols)
+        except Exception as e:
+            print(f"[Database Seeder] Error fetching fundamentals: {e}")
+
+        # 3. Analyze compounders
+        try:
+            import fetch_historical_fundamentals
+            print("[Database Seeder] Running compounder analysis on deals...")
+            fetch_historical_fundamentals.fetch_and_analyze_compounders()
+        except Exception as e:
+            print(f"[Database Seeder] Error analyzing compounders: {e}")
+
+        print("[Database Seeder] Seeding completed successfully!")
+    else:
+        print(f"[Database Seeder] Database already contains {count} records. Skipping seeder.")
+
 if __name__ == '__main__':
+    # Ensure database is initialized with all tables
+    database.init_db()
+
     # Ensure templates folder exists
     import os
     if not os.path.exists('templates'):
         os.makedirs('templates')
         
-    # Start background news crawler preventing double initialization by Flask reloader
+    # Start background tasks preventing double initialization by Flask reloader
     if not os.environ.get('WERKZEUG_RUN_MAIN') and app.debug:
-        print("[News Crawler Thread] Waiting for Flask child process before spinning thread...")
+        print("[Background Tasks] Waiting for Flask child process before spinning threads...")
     else:
+        # Start news crawler
         crawler_thread = threading.Thread(target=background_news_crawler_task, daemon=True)
         crawler_thread.start()
+
+        # Start database seeder
+        seeder_thread = threading.Thread(target=background_seeding_task, daemon=True)
+        seeder_thread.start()
         
     port = int(os.environ.get('PORT', 8083))
     is_render = os.environ.get('RENDER') is not None

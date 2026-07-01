@@ -61,8 +61,8 @@ def fetch_and_analyze_compounders():
     rows = cursor.fetchall()
     symbols = [r['symbol'] for r in rows]
     
-    # Optional: limit to a manageable test batch if there are hundreds
-    # symbols = symbols[:50]
+    # Limit to a manageable batch (especially on Render to avoid yfinance rate limits)
+    symbols = symbols[:30]
     
     total = len(symbols)
     print(f"Scanning {total} stocks for 3-year consistent compounders...")

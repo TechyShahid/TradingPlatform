@@ -5,10 +5,34 @@ from database import get_db_connection, init_db
 import time
 from datetime import datetime
 
+def call_gemini_text_api(prompt):
+    import os
+    import json
+    import urllib.request
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not found")
+        
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    payload = {
+        "contents": [{
+            "parts": [{
+                "text": prompt
+            }]
+        }]
+    }
+    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), method='POST')
+    req.add_header('Content-Type', 'application/json')
+    
+    response = urllib.request.urlopen(req, timeout=30)
+    res_data = json.loads(response.read().decode('utf-8'))
+    return res_data['candidates'][0]['content']['parts'][0]['text'].strip()
+
 def analyze_fundamental_drivers(symbol, bs_summary, is_summary):
-    """ Call local Llama 3 to analyze balance sheet drivers """
+    """ Call Gemini or local Llama 3 to analyze balance sheet drivers """
     import urllib.request
     import json
+    import os
     
     prompt = f"""
 You are an expert quantitative fundamental analyst. Analyze the following 3-year financial summary for {symbol}.
@@ -23,6 +47,16 @@ Balance Sheet Summary:
 Provide your analysis in exactly 1-2 concise sentences focusing on the underlying financial drivers (e.g., margin expansion, debt reduction, massive revenue growth, operating leverage).
 """
 
+    # 1. Try Google Gemini API if configured
+    if os.environ.get("GEMINI_API_KEY"):
+        print(f"[Compounders] Requesting analysis from Google Gemini API for {symbol}...")
+        try:
+            return call_gemini_text_api(prompt).replace('\n', ' ')
+        except Exception as e:
+            print(f"[Compounders] Gemini API error for {symbol}: {e}. Trying fallback...")
+
+    # 2. Try Local Ollama (Llama 3)
+    print(f"[Compounders] Requesting analysis from local Ollama (Llama 3) for {symbol}...")
     data = {
         "model": "llama3:latest",
         "prompt": prompt,
@@ -44,7 +78,8 @@ Provide your analysis in exactly 1-2 concise sentences focusing on the underlyin
         result = json.loads(response.read().decode('utf-8'))
         return result['response'].strip().replace('\n', ' ')
     except Exception as e:
-        print(f"Error calling Ollama for {symbol}: {e}")
+        print(f"[Compounders] Error calling Ollama for {symbol}: {e}")
+        # 3. Fall back to a solid default
         return "Strong financial execution and favorable operating metrics."
 
 def fetch_and_analyze_compounders():

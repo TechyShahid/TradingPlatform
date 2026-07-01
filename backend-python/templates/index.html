@@ -449,11 +449,25 @@
 <body>
     <div class="container">
         <header>
-            <div>
-                <h1>Volume Spike Radar</h1>
-                <p style="color: #64748b; font-size: 0.9rem;">NSE Intraday Scanner (5-Min Vol vs 5-Day Avg)</p>
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 1.5rem; flex-wrap: wrap;">
+                <div>
+                    <h1>Volume Spike Radar</h1>
+                    <p style="color: #64748b; font-size: 0.9rem;">NSE Intraday Scanner (5-Min Vol vs 5-Day Avg)</p>
+                </div>
+                {% if session.get('user') %}
+                <div class="user-profile" style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 0.9rem; text-transform: uppercase;">
+                        {{ session.get('user').name[0] if session.get('user').name else 'U' }}
+                    </div>
+                    <div style="display: flex; flex-direction: column; line-height: 1.2; text-align: left;">
+                        <span style="font-size: 0.8rem; font-weight: 600; color: #fff;">{{ session.get('user').name or 'User' }}</span>
+                        <span style="font-size: 0.7rem; color: #94a3b8;">{{ session.get('user').email }}</span>
+                    </div>
+                    <a href="/logout" style="color: #ef4444; font-size: 0.75rem; margin-left: 8px; text-decoration: none; font-weight: 600; transition: 0.3s;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#ef4444'">Logout</a>
+                </div>
+                {% endif %}
             </div>
-            <div class="header-controls">
+            <div class="header-controls" style="width: 100%; border-top: 1px solid var(--glass-border); padding-top: 1rem; display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem;">
                 <div class="toggle-container">
                     <span class="toggle-label">15m Trend Filter</span>
                     <label class="switch">

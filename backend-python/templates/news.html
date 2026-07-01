@@ -522,14 +522,29 @@
     <div class="container">
         <!-- Header -->
         <header>
-            <div class="header-title-container">
-                <span class="header-logo">📰</span>
-                <div>
-                    <h1>Live News Radar</h1>
-                    <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.15rem; letter-spacing: 0.5px; text-transform: uppercase;">Real-Time Financial Sentiment Tracker</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 1.5rem; flex-wrap: wrap;">
+                <div class="header-title-container">
+                    <span class="header-logo">📰</span>
+                    <div>
+                        <h1>Live News Radar</h1>
+                        <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.15rem; letter-spacing: 0.5px; text-transform: uppercase;">Real-Time Financial Sentiment Tracker</div>
+                    </div>
                 </div>
+                {% if session.get('user') %}
+                <div class="user-profile" style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.05); padding: 0.5rem 1rem; border-radius: 12px; border: 1px solid var(--glass-border);">
+                    <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; font-size: 0.9rem; text-transform: uppercase;">
+                        {{ session.get('user').name[0] if session.get('user').name else 'U' }}
+                    </div>
+                    <div style="display: flex; flex-direction: column; line-height: 1.2; text-align: left;">
+                        <span style="font-size: 0.8rem; font-weight: 600; color: #fff;">{{ session.get('user').name or 'User' }}</span>
+                        <span style="font-size: 0.7rem; color: #94a3b8;">{{ session.get('user').email }}</span>
+                    </div>
+                    <a href="/logout" style="color: #ef4444; font-size: 0.75rem; margin-left: 8px; text-decoration: none; font-weight: 600; transition: 0.3s;" onmouseover="this.style.color='#f87171'" onmouseout="this.style.color='#ef4444'">Logout</a>
+                </div>
+                {% endif %}
             </div>
-            <div class="nav-controls">
+            
+            <div class="nav-controls" style="width: 100%; border-top: 1px solid var(--glass-border); padding-top: 1rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem;">
                 <button onclick="syncNews()" id="sync-btn" class="btn btn-accent">
                     <span id="sync-icon">🔄</span>
                     <span id="sync-text">Sync News Now</span>

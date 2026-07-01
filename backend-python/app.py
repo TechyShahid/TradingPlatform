@@ -134,11 +134,29 @@ def login_callback():
             return "Unable to retrieve email ID from Google profile", 400
             
         # Initialize session profile
+        name = user_info.get('name', '')
         session['user'] = {
             'email': email,
-            'name': user_info.get('name', '')
+            'name': name
         }
         
+        # Save or update user profile in SQLite database
+        try:
+            conn = database.get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO users (email, name, last_login)
+                VALUES (?, ?, datetime('now', 'localtime'))
+                ON CONFLICT(email) DO UPDATE SET
+                    name=excluded.name,
+                    last_login=excluded.last_login
+            ''', (email, name))
+            conn.commit()
+            conn.close()
+            print(f"[Database] Logged user session for: {email}")
+        except Exception as db_err:
+            print(f"[Database] Error logging user session: {db_err}")
+            
         # Redirect back to original resource
         next_url = session.pop('next_url', '/')
         return redirect(next_url)
@@ -149,6 +167,13 @@ def login_callback():
 def logout():
     session.clear()
     return "Successfully logged out. <a href='/login'>Login again</a>"
+
+@app.route('/api/user/profile')
+def get_user_profile():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+    return jsonify(user)
 
 # Global state to track analysis
 analysis_state = {

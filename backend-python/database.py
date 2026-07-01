@@ -85,6 +85,16 @@ def init_db():
         )
     ''')
     
+    # Create users table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE,
+            name TEXT,
+            last_login TEXT
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 

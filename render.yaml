@@ -1,22 +1,10 @@
 services:
-  # Node.js Backend
-  - type: web
-    name: trading-platform-node
-    plan: free
-    env: node
-    buildCommand: npm install
-    startCommand: node server/index.js
-    envVars:
-      - key: PORT
-        value: 3000
-      - key: NODE_ENV
-        value: production
-
   # Python Backend
   - type: web
     name: trading-platform-python
     plan: free
     env: python
+    rootDir: backend-python
     buildCommand: pip install -r requirements.txt
     startCommand: python app.py
     envVars:

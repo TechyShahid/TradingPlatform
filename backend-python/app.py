@@ -294,4 +294,7 @@ if __name__ == '__main__':
         crawler_thread = threading.Thread(target=background_news_crawler_task, daemon=True)
         crawler_thread.start()
         
-    app.run(debug=True, port=8083, host='0.0.0.0') # Using 0.0.0.0 to allow network access
+    port = int(os.environ.get('PORT', 8083))
+    is_render = os.environ.get('RENDER') is not None
+    debug_mode = not is_render
+    app.run(debug=debug_mode, port=port, host='0.0.0.0') # Using 0.0.0.0 to allow network access

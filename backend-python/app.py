@@ -9,6 +9,147 @@ import sqlite3
 app = Flask(__name__)
 CORS(app)
 
+# --- OAuth2 Helper Code & Configurations ---
+import secrets
+import urllib.parse
+import urllib.request
+import json
+import os
+from flask import session, redirect, url_for
+
+# --- Load .env files for local development ---
+def load_env_file(dotenv_path):
+    if os.path.exists(dotenv_path):
+        with open(dotenv_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                key, val = line.split('=', 1)
+                os.environ[key.strip()] = val.strip().strip('"').strip("'")
+
+# Load from backend-python or root workspace directory
+load_env_file(os.path.join(os.path.dirname(__file__), '.env'))
+load_env_file(os.path.join(os.path.dirname(__file__), '..', '.env'))
+
+app.secret_key = os.environ.get('SECRET_KEY', 'trading_platform_dev_secret_key_92931')
+
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
+
+def get_google_auth_url(redirect_uri, state):
+    params = {
+        "client_id": os.environ.get("GOOGLE_CLIENT_ID"),
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "access_type": "online",
+        "prompt": "select_account"
+    }
+    return f"{GOOGLE_AUTH_URL}?{urllib.parse.urlencode(params)}"
+
+def exchange_code_for_token(code, redirect_uri):
+    payload = {
+        "code": code,
+        "client_id": os.environ.get("GOOGLE_CLIENT_ID"),
+        "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET"),
+        "redirect_uri": redirect_uri,
+        "grant_type": "authorization_code"
+    }
+    data = urllib.parse.urlencode(payload).encode('utf-8')
+    req = urllib.request.Request(GOOGLE_TOKEN_URL, data=data, method='POST')
+    req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+    response = urllib.request.urlopen(req)
+    return json.loads(response.read().decode('utf-8'))
+
+def get_user_info(access_token):
+    req = urllib.request.Request(GOOGLE_USERINFO_URL)
+    req.add_header('Authorization', f'Bearer {access_token}')
+    response = urllib.request.urlopen(req)
+    return json.loads(response.read().decode('utf-8'))
+
+
+# --- Global Authentication Interceptor ---
+@app.before_request
+def restrict_access():
+    # Allow authentication routes and static assets
+    if request.path in ['/login', '/login/callback', '/logout'] or request.path.startswith('/static/'):
+        return None
+        
+    # Check if user is authenticated in current session
+    if not session.get('user'):
+        # For API endpoints, return 401 Unauthorized
+        if request.path.startswith('/api/'):
+            return jsonify({'error': 'Unauthorized', 'login_url': '/login'}), 401
+            
+        # For regular HTML pages, redirect to Google Login flow
+        # Retain original target URL in next query param
+        return redirect(url_for('login', next=request.url))
+
+
+# --- Authentication Routes ---
+@app.route('/login')
+def login():
+    # Save redirect destination
+    next_url = request.args.get('next', '/')
+    session['next_url'] = next_url
+    
+    # Generate anti-CSRF token
+    state = secrets.token_urlsafe(32)
+    session['oauth_state'] = state
+    
+    # Generate callback URI
+    redirect_uri = url_for('login_callback', _external=True)
+    if request.headers.get('X-Forwarded-Proto') == 'https':
+        redirect_uri = redirect_uri.replace('http://', 'https://')
+        
+    return redirect(get_google_auth_url(redirect_uri, state))
+
+@app.route('/login/callback')
+def login_callback():
+    # Verify state to prevent CSRF
+    expected_state = session.pop('oauth_state', None)
+    state = request.args.get('state')
+    if not expected_state or expected_state != state:
+        return "State mismatch (CSRF token verification failed)", 400
+        
+    code = request.args.get('code')
+    if not code:
+        return "Authorization code missing from provider callback", 400
+        
+    redirect_uri = url_for('login_callback', _external=True)
+    if request.headers.get('X-Forwarded-Proto') == 'https':
+        redirect_uri = redirect_uri.replace('http://', 'https://')
+        
+    try:
+        # Retrieve tokens and email info
+        token_response = exchange_code_for_token(code, redirect_uri)
+        access_token = token_response.get('access_token')
+        user_info = get_user_info(access_token)
+        
+        email = user_info.get('email')
+        if not email:
+            return "Unable to retrieve email ID from Google profile", 400
+            
+        # Initialize session profile
+        session['user'] = {
+            'email': email,
+            'name': user_info.get('name', '')
+        }
+        
+        # Redirect back to original resource
+        next_url = session.pop('next_url', '/')
+        return redirect(next_url)
+    except Exception as e:
+        return f"Authentication Error: {str(e)}", 500
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return "Successfully logged out. <a href='/login'>Login again</a>"
+
 # Global state to track analysis
 analysis_state = {
     'running': False,

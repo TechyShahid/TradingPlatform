@@ -203,8 +203,52 @@
         }
 
         @media (max-width: 900px) {
+            body {
+                padding: 1rem;
+            }
+
             .dashboard-layout {
                 grid-template-columns: 1fr;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 1.2rem;
+                gap: 1.2rem;
+                border-radius: 16px;
+            }
+
+            header > div:first-child {
+                width: 100%;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            header > div:last-child {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.8rem;
+                border-top: 1px solid var(--glass-border);
+                padding-top: 1rem;
+                margin-top: 0.5rem;
+            }
+
+            .user-profile {
+                width: auto;
+                margin-left: 0 !important;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+                text-align: center;
+            }
+
+            .sidebar {
+                position: static;
+                margin-bottom: 1.5rem;
             }
         }
 

@@ -170,6 +170,69 @@
         .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
         .pagination button.active { background: var(--accent); border-color: var(--accent); color: white; }
         .page-info { display: flex; gap: 0.3rem; align-items: center; font-size: 0.8rem; }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 1.2rem;
+                gap: 1.2rem;
+                border-radius: 16px;
+            }
+
+            header > div:first-child {
+                width: 100%;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            header > div:last-child {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.8rem;
+                border-top: 1px solid var(--glass-border);
+                padding-top: 1rem;
+                margin-top: 0.5rem;
+            }
+
+            .user-profile {
+                width: auto;
+                margin-left: 0 !important;
+            }
+
+            h1 {
+                font-size: 1.2rem;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+                text-align: center;
+            }
+
+            .panel {
+                padding: 0 1rem 1rem 1rem;
+                max-height: 85vh;
+            }
+
+            .panel h2 {
+                font-size: 1rem;
+                margin: 0 -1rem 1rem -1rem;
+                padding: 1rem 1rem 0.5rem 1rem;
+            }
+
+            th, td {
+                padding: 0.6rem 0.4rem;
+                font-size: 0.75rem;
+                white-space: nowrap;
+            }
+        }
     </style>
 </head>
 
@@ -210,51 +273,57 @@
                 <div id="ai-loading" class="loading">
                     Llama 3 is analyzing all market data (Deals + Fundamentals). This may take 15-30 seconds...
                 </div>
-                <table id="ai-table" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Symbol</th>
-                            <th>Company Name</th>
-                            <th>Predicted Growth</th>
-                            <th>AI Reasoning</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ai-body"></tbody>
-                </table>
+                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
+                    <table id="ai-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Company Name</th>
+                                <th>Predicted Growth</th>
+                                <th>AI Reasoning</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ai-body"></tbody>
+                    </table>
+                </div>
             </div>
             
             <!-- Compounders Panel -->
             <div class="panel" id="comp-panel" style="border-color: rgba(16, 185, 129, 0.4);">
                 <h2 style="color: #34d399;">👑 3-Year Consistent Compounders (>10% YoY)</h2>
                 <div id="comp-loading" class="loading">Fetching consistent compounders...</div>
-                <table id="comp-table" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Symbol</th>
-                            <th>3-Year Avg Growth</th>
-                            <th>AI Driving Factor Analysis</th>
-                        </tr>
-                    </thead>
-                    <tbody id="comp-body"></tbody>
-                </table>
+                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
+                    <table id="comp-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>3-Year Avg Growth</th>
+                                <th>AI Driving Factor Analysis</th>
+                            </tr>
+                        </thead>
+                        <tbody id="comp-body"></tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Fundamentals Panel -->
             <div class="panel">
                 <h2>Fundamental Growth Stocks (YoY > 10%)</h2>
                 <div id="fund-loading" class="loading">Analyzing fundamentals...</div>
-                <table id="fund-table" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Symbol</th>
-                            <th>Revenue Growth</th>
-                            <th>Profit Growth</th>
-                            <th>Latest Revenue</th>
-                            <th>Latest Net Income</th>
-                        </tr>
-                    </thead>
-                    <tbody id="fund-body"></tbody>
-                </table>
+                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
+                    <table id="fund-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Revenue Growth</th>
+                                <th>Profit Growth</th>
+                                <th>Latest Revenue</th>
+                                <th>Latest Net Income</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fund-body"></tbody>
+                    </table>
+                </div>
                 <div id="fund-pagination" class="pagination" style="display: none;">
                     <button id="fund-prev" onclick="changeFundPage(-1)">Previous</button>
                     <div id="fund-page-info" class="page-info"></div>
@@ -266,17 +335,19 @@
             <div class="panel">
                 <h2>Institutional Activity (Multiple Bulk/Block BUYS)</h2>
                 <div id="deals-loading" class="loading">Analyzing institutional deals...</div>
-                <table id="deals-table" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Symbol</th>
-                            <th>Company Name</th>
-                            <th>Total Institutional Buys</th>
-                            <th>Total Quantity Bought</th>
-                        </tr>
-                    </thead>
-                    <tbody id="deals-body"></tbody>
-                </table>
+                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
+                    <table id="deals-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Company Name</th>
+                                <th>Total Institutional Buys</th>
+                                <th>Total Quantity Bought</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deals-body"></tbody>
+                    </table>
+                </div>
                 <div id="deals-pagination" class="pagination" style="display: none;">
                     <button id="deals-prev" onclick="changeDealsPage(-1)">Previous</button>
                     <div id="deals-page-info" class="page-info"></div>

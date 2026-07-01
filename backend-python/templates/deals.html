@@ -171,6 +171,69 @@
         .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
         .pagination button.active { background: var(--accent); border-color: var(--accent); color: white; }
         .page-info { display: flex; gap: 0.3rem; align-items: center; font-size: 0.8rem; }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 1.2rem;
+                gap: 1.2rem;
+                border-radius: 16px;
+            }
+
+            header > div:first-child {
+                width: 100%;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            header > div:last-child {
+                width: 100%;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.8rem;
+                border-top: 1px solid var(--glass-border);
+                padding-top: 1rem;
+                margin-top: 0.5rem;
+            }
+
+            .user-profile {
+                width: auto;
+                margin-left: 0 !important;
+            }
+
+            h1 {
+                font-size: 1.2rem;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+                text-align: center;
+            }
+
+            .panel {
+                padding: 0 1rem 1rem 1rem;
+                max-height: 85vh;
+            }
+
+            .panel h2 {
+                font-size: 1rem;
+                margin: 0 -1rem 1rem -1rem;
+                padding: 1rem 1rem 0.5rem 1rem;
+            }
+
+            th, td {
+                padding: 0.6rem 0.4rem;
+                font-size: 0.75rem;
+                white-space: nowrap;
+            }
+        }
     </style>
 </head>
 
@@ -211,36 +274,40 @@
                 <div id="ai-loading" class="loading">
                     Llama 3 is analyzing all market data. This may take 15-30 seconds...
                 </div>
-                <table id="ai-table" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Symbol</th>
-                            <th>Company Name</th>
-                            <th>Predicted Growth</th>
-                            <th>AI Reasoning</th>
-                        </tr>
-                    </thead>
-                    <tbody id="ai-body"></tbody>
-                </table>
+                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
+                    <table id="ai-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Company Name</th>
+                                <th>Predicted Growth</th>
+                                <th>AI Reasoning</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ai-body"></tbody>
+                    </table>
+                </div>
             </div>
             
             <!-- Block Deals Panel -->
             <div class="panel">
                 <h2>Recent Block Deals</h2>
                 <div id="block-loading" class="loading">Loading block deals...</div>
-                <table id="block-table" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Symbol</th>
-                            <th>Client Name</th>
-                            <th>Action</th>
-                            <th>Quantity</th>
-                            <th>Price</th>
-                        </tr>
-                    </thead>
-                    <tbody id="block-body"></tbody>
-                </table>
+                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
+                    <table id="block-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Symbol</th>
+                                <th>Client Name</th>
+                                <th>Action</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                            </tr>
+                        </thead>
+                        <tbody id="block-body"></tbody>
+                    </table>
+                </div>
                 <div id="block-pagination" class="pagination" style="display: none;">
                     <button id="block-prev" onclick="changePage('block', -1)">Previous</button>
                     <div id="block-page-info" class="page-info"></div>
@@ -252,19 +319,21 @@
             <div class="panel">
                 <h2>Recent Bulk Deals</h2>
                 <div id="bulk-loading" class="loading">Loading bulk deals...</div>
-                <table id="bulk-table" style="display: none;">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Symbol</th>
-                            <th>Client Name</th>
-                            <th>Action</th>
-                            <th>Quantity</th>
-                            <th>Price</th>
-                        </tr>
-                    </thead>
-                    <tbody id="bulk-body"></tbody>
-                </table>
+                <div style="overflow-x: auto; width: 100%; -webkit-overflow-scrolling: touch; margin-top: 0.5rem;">
+                    <table id="bulk-table" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Symbol</th>
+                                <th>Client Name</th>
+                                <th>Action</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulk-body"></tbody>
+                    </table>
+                </div>
                 <div id="bulk-pagination" class="pagination" style="display: none;">
                     <button id="bulk-prev" onclick="changePage('bulk', -1)">Previous</button>
                     <div id="bulk-page-info" class="page-info"></div>

@@ -60,6 +60,31 @@ def init_db():
         )
     ''')
     
+    # Create consistent_compounders table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS consistent_compounders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            symbol TEXT UNIQUE,
+            avg_3yr_growth_pct REAL,
+            ai_driving_factor TEXT,
+            last_updated TEXT
+        )
+    ''')
+    
+    # Create stock_news table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS stock_news (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            source TEXT,
+            url TEXT UNIQUE,
+            summary TEXT,
+            published_at TEXT,
+            sentiment TEXT,
+            ticker TEXT
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 

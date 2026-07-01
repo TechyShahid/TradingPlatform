@@ -137,6 +137,19 @@ def get_block_deals():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/fundamentals/compounders')
+def get_consistent_compounders():
+    try:
+        conn = database.get_db_connection()
+        conn.row_factory = dict_factory
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM consistent_compounders ORDER BY avg_3yr_growth_pct DESC")
+        rows = cur.fetchall()
+        conn.close()
+        return jsonify(rows)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/deals/potential_growth')
 def get_potential_growth():
     try:
@@ -182,9 +195,103 @@ def ai_predict_growth():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/news')
+def news_page():
+    return render_template('news.html')
+
+@app.route('/api/news')
+def get_news():
+    try:
+        sentiment = request.args.get('sentiment')
+        source = request.args.get('source')
+        ticker = request.args.get('ticker')
+        search = request.args.get('search')
+        limit = request.args.get('limit', 100, type=int)
+        
+        conn = database.get_db_connection()
+        conn.row_factory = dict_factory
+        cur = conn.cursor()
+        
+        query = "SELECT * FROM stock_news WHERE 1=1"
+        params = []
+        
+        if sentiment:
+            query += " AND sentiment = ?"
+            params.append(sentiment)
+        if source:
+            query += " AND source = ?"
+            params.append(source)
+        if ticker:
+            # Match within comma-separated ticker list
+            query += " AND (',' || UPPER(ticker) || ',' LIKE ?)"
+            params.append(f"%,{ticker.upper()},%")
+        if search:
+            query += " AND (title LIKE ? OR summary LIKE ?)"
+            params.append(f"%{search}%")
+            params.append(f"%{search}%")
+            
+        query += " ORDER BY published_at DESC LIMIT ?"
+        params.append(limit)
+        
+        cur.execute(query, params)
+        rows = cur.fetchall()
+        
+        # Calculate statistics
+        cur.execute("SELECT sentiment, COUNT(*) as count FROM stock_news GROUP BY sentiment")
+        stats_rows = cur.fetchall()
+        stats = {row['sentiment']: row['count'] for row in stats_rows}
+        for s in ['Positive', 'Negative', 'Neutral']:
+            if s not in stats:
+                stats[s] = 0
+                
+        conn.close()
+        return jsonify({
+            'news': rows,
+            'stats': stats
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/news/crawl', methods=['POST'])
+def trigger_news_crawl():
+    try:
+        import news_crawler
+        new_count = news_crawler.crawl_all_news()
+        return jsonify({
+            'status': 'success',
+            'new_articles_count': new_count
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def background_news_crawler_task():
+    import news_crawler
+    print("[News Crawler Thread] Background thread started.")
+    # Run once immediately on startup
+    try:
+        news_crawler.crawl_all_news()
+    except Exception as e:
+        print(f"[News Crawler Thread] Error during startup crawl: {e}")
+        
+    while True:
+        time.sleep(900) # Sleep for 15 minutes
+        try:
+            print("[News Crawler Thread] Running scheduled periodic news crawl...")
+            news_crawler.crawl_all_news()
+        except Exception as e:
+            print(f"[News Crawler Thread] Error during scheduled crawl: {e}")
+
 if __name__ == '__main__':
     # Ensure templates folder exists
     import os
     if not os.path.exists('templates'):
         os.makedirs('templates')
+        
+    # Start background news crawler preventing double initialization by Flask reloader
+    if not os.environ.get('WERKZEUG_RUN_MAIN') and app.debug:
+        print("[News Crawler Thread] Waiting for Flask child process before spinning thread...")
+    else:
+        crawler_thread = threading.Thread(target=background_news_crawler_task, daemon=True)
+        crawler_thread.start()
+        
     app.run(debug=True, port=8083, host='0.0.0.0') # Using 0.0.0.0 to allow network access

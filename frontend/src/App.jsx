@@ -3,13 +3,44 @@ import ChartContainer from './components/ChartContainer';
 import Watchlist from './components/Watchlist';
 import { fetchHistoricalData, subscribeToUpdates, startWatchlistPolling, DEFAULT_WATCHLIST, fetchQuote } from './services/dataService';
 import './styles/App.css';
-import { Layout, Activity } from 'lucide-react';
+import { Layout, Activity, Newspaper, X, RefreshCw } from 'lucide-react';
 
 function App() {
   const [symbol, setSymbol] = useState('RELIANCE');
   const [chartData, setChartData] = useState([]);
   const [resolution, setResolution] = useState('1D');
   const lastCandleRef = useRef(null);
+
+  // News States
+  const [showNews, setShowNews] = useState(false);
+  const [news, setNews] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [filterNewsBySymbol, setFilterNewsBySymbol] = useState(false);
+
+  const fetchNewsForReact = async () => {
+    setNewsLoading(true);
+    try {
+      let url = 'http://localhost:8083/api/news?limit=50';
+      if (filterNewsBySymbol && symbol) {
+        url += `&ticker=${symbol}`;
+      }
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        setNews(data.news || []);
+      }
+    } catch (err) {
+      console.error("Error fetching news from Flask:", err);
+    } finally {
+      setNewsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showNews) {
+      fetchNewsForReact();
+    }
+  }, [showNews, filterNewsBySymbol, symbol]);
 
   // Advanced Watchlist State
   const [watchlists, setWatchlists] = useState(() => {
@@ -271,6 +302,14 @@ function App() {
             <Activity size={18} />
             Scanner
           </a>
+          <button
+            className={`menu-btn secondary-btn ${showNews ? 'active' : ''}`}
+            onClick={() => setShowNews(!showNews)}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderColor: showNews ? 'var(--color-accent)' : '' }}
+          >
+            <Newspaper size={18} />
+            News Feed
+          </button>
         </div>
       </header>
 
@@ -286,6 +325,66 @@ function App() {
             />
           }
         </div>
+
+        {showNews && (
+          <aside className="news-sidebar">
+            <div className="news-sidebar-header">
+              <span className="news-sidebar-title">📰 Market News</span>
+              <button className="icon-btn" onClick={() => setShowNews(false)}><X size={16} /></button>
+            </div>
+            
+            <div className="news-sidebar-controls">
+              <label className="toggle-label">
+                <input 
+                  type="checkbox" 
+                  checked={filterNewsBySymbol} 
+                  onChange={(e) => setFilterNewsBySymbol(e.target.checked)} 
+                />
+                Filter by {symbol}
+              </label>
+              <button className="icon-btn small" onClick={fetchNewsForReact} title="Refresh News">
+                <RefreshCw size={14} className={newsLoading ? 'sync-spin' : ''} />
+              </button>
+            </div>
+            
+            <div className="news-list">
+              {newsLoading && <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>Loading feed...</div>}
+              
+              {!newsLoading && news.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--color-text-secondary)' }}>
+                  No news found.
+                </div>
+              )}
+              
+              {!newsLoading && news.map((item) => (
+                <div key={item.id} className={`news-item-card ${item.sentiment ? item.sentiment.toLowerCase() : 'neutral'}`}>
+                  <div className="news-item-meta">
+                    <span className="news-item-source">{item.source}</span>
+                    <span>{item.published_at ? item.published_at.substring(5, 16) : ''}</span>
+                  </div>
+                  <a href={item.url} target="_blank" rel="noopener noreferrer" className="news-item-title">
+                    {item.title}
+                  </a>
+                  <p className="news-item-desc">{item.summary}</p>
+                  {item.ticker && (
+                    <div className="news-item-tickers">
+                      {item.ticker.split(',').map(sym => (
+                        <span 
+                          key={sym} 
+                          className="news-item-ticker-pill" 
+                          onClick={() => setSymbol(sym)}
+                          title={`Show ${sym} chart`}
+                        >
+                          {sym}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </aside>
+        )}
         <aside className="sidebar" onClick={() => setShowIndicatorsMenu(false)}>
           <Watchlist
             stocks={watchlistData}

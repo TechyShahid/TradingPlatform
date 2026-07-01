@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Growth Stocks Radar</title>
+    <title>NSE Recent Deals</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -15,7 +15,7 @@
             --accent-glow: rgba(99, 102, 241, 0.3);
             --text: #e2e8f0;
             --success: #10b981;
-            --warning: #f59e0b;
+            --danger: #ef4444;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
@@ -81,16 +81,8 @@
             background: var(--glass);
             backdrop-filter: blur(12px);
             border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 2rem;
-        }
-
-        .panel {
-            background: var(--glass);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
             border-radius: 16px;
-            padding: 1.5rem;
+            padding: 0 1.5rem 1.5rem 1.5rem;
             max-height: 75vh;
             overflow-y: auto;
         }
@@ -102,7 +94,7 @@
 
         .panel h2 {
             font-size: 1.1rem;
-            margin: -1.5rem -1.5rem 1rem -1.5rem;
+            margin: 0 -1.5rem 1rem -1.5rem;
             padding: 1.5rem 1.5rem 0.5rem 1.5rem;
             color: #fff;
             border-bottom: 1px solid var(--glass-border);
@@ -151,7 +143,8 @@
             border: 1px solid rgba(99, 102, 241, 0.3);
         }
 
-        .positive { color: var(--success); font-weight: 600; }
+        .buy-badge { color: var(--success); font-weight: 600; }
+        .sell-badge { color: var(--danger); font-weight: 600; }
         .loading { text-align: center; color: #94a3b8; padding: 2rem; }
 
         .pagination {
@@ -184,11 +177,14 @@
 <body>
     <div class="container">
         <header>
-            <h1>Growth Engine</h1>
+            <h1>NSE Live Deals</h1>
             <div style="display:flex; gap: 1rem;">
                 <button onclick="runAiAnalysis()" id="ai-btn" class="btn" style="background: linear-gradient(135deg, #f59e0b, #ef4444); text-decoration: none;">
                     🤖 Predict Growth (Llama 3 AI)
                 </button>
+                <a href="/news" class="btn" style="background: linear-gradient(135deg, #f59e0b, #ef4444); text-decoration: none;">
+                    📰 Market News
+                </a>
                 <a href="/" class="btn">← Back to Volume Radar</a>
             </div>
         </header>
@@ -199,7 +195,7 @@
             <div class="panel" id="ai-panel" style="display: none; border-color: rgba(245, 158, 11, 0.4);">
                 <h2 style="color: #fcd34d;">🤖 AI Top Growth Predictions</h2>
                 <div id="ai-loading" class="loading">
-                    Llama 3 is analyzing all market data (Deals + Fundamentals). This may take 15-30 seconds...
+                    Llama 3 is analyzing all market data. This may take 15-30 seconds...
                 </div>
                 <table id="ai-table" style="display: none;">
                     <thead>
@@ -214,48 +210,51 @@
                 </table>
             </div>
             
-            <!-- Fundamentals Panel -->
+            <!-- Block Deals Panel -->
             <div class="panel">
-                <h2>Fundamental Growth Stocks (YoY > 10%)</h2>
-                <div id="fund-loading" class="loading">Analyzing fundamentals...</div>
-                <table id="fund-table" style="display: none;">
+                <h2>Recent Block Deals</h2>
+                <div id="block-loading" class="loading">Loading block deals...</div>
+                <table id="block-table" style="display: none;">
                     <thead>
                         <tr>
+                            <th>Date</th>
                             <th>Symbol</th>
-                            <th>Revenue Growth</th>
-                            <th>Profit Growth</th>
-                            <th>Latest Revenue</th>
-                            <th>Latest Net Income</th>
+                            <th>Client Name</th>
+                            <th>Action</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
                         </tr>
                     </thead>
-                    <tbody id="fund-body"></tbody>
+                    <tbody id="block-body"></tbody>
                 </table>
-                <div id="fund-pagination" class="pagination" style="display: none;">
-                    <button id="fund-prev" onclick="changeFundPage(-1)">Previous</button>
-                    <div id="fund-page-info" class="page-info"></div>
-                    <button id="fund-next" onclick="changeFundPage(1)">Next</button>
+                <div id="block-pagination" class="pagination" style="display: none;">
+                    <button id="block-prev" onclick="changePage('block', -1)">Previous</button>
+                    <div id="block-page-info" class="page-info"></div>
+                    <button id="block-next" onclick="changePage('block', 1)">Next</button>
                 </div>
             </div>
 
-            <!-- Deals Panel -->
+            <!-- Bulk Deals Panel -->
             <div class="panel">
-                <h2>Institutional Activity (Multiple Bulk/Block BUYS)</h2>
-                <div id="deals-loading" class="loading">Analyzing institutional deals...</div>
-                <table id="deals-table" style="display: none;">
+                <h2>Recent Bulk Deals</h2>
+                <div id="bulk-loading" class="loading">Loading bulk deals...</div>
+                <table id="bulk-table" style="display: none;">
                     <thead>
                         <tr>
+                            <th>Date</th>
                             <th>Symbol</th>
-                            <th>Company Name</th>
-                            <th>Total Institutional Buys</th>
-                            <th>Total Quantity Bought</th>
+                            <th>Client Name</th>
+                            <th>Action</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
                         </tr>
                     </thead>
-                    <tbody id="deals-body"></tbody>
+                    <tbody id="bulk-body"></tbody>
                 </table>
-                <div id="deals-pagination" class="pagination" style="display: none;">
-                    <button id="deals-prev" onclick="changeDealsPage(-1)">Previous</button>
-                    <div id="deals-page-info" class="page-info"></div>
-                    <button id="deals-next" onclick="changeDealsPage(1)">Next</button>
+                <div id="bulk-pagination" class="pagination" style="display: none;">
+                    <button id="bulk-prev" onclick="changePage('bulk', -1)">Previous</button>
+                    <div id="bulk-page-info" class="page-info"></div>
+                    <button id="bulk-next" onclick="changePage('bulk', 1)">Next</button>
                 </div>
             </div>
 
@@ -265,29 +264,52 @@
     <script>
         const formatCurrency = (num) => {
             if (!num) return '₹0';
-            if (num > 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
-            if (num > 100000) return `₹${(num / 100000).toFixed(2)} L`;
-            return `₹${num.toLocaleString('en-IN')}`;
+            return `₹${Number(num).toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
         };
 
-        const formatPercent = (num) => {
-            if (typeof num === 'string') return num;
-            return num > 0 ? `+${num}%` : `${num}%`;
+        const getActionBadge = (action) => {
+            if (!action) return '';
+            if (action.toUpperCase().includes('BUY')) return `<span class="buy-badge">BUY</span>`;
+            if (action.toUpperCase().includes('SELL')) return `<span class="sell-badge">SELL</span>`;
+            return action;
         };
 
-        let fundData = [];
-        let dealsData = [];
-        let fundPage = 1;
-        let dealsPage = 1;
-        const pageSize = 10;
+        let tableData = {
+            'block': { data: [], page: 1 },
+            'bulk': { data: [], page: 1 }
+        };
+        const pageSize = 15;
 
-        function renderPagination(type, dataLength, currentPage, pageInfoId, prevId, nextId) {
-            const totalPages = Math.ceil(dataLength / pageSize) || 1;
-            const pageInfo = document.getElementById(pageInfoId);
+        function renderTable(type) {
+            const tbody = document.getElementById(`${type}-body`);
+            tbody.innerHTML = '';
+            
+            const state = tableData[type];
+            const start = (state.page - 1) * pageSize;
+            const end = start + pageSize;
+            const paginatedData = state.data.slice(start, end);
+            
+            paginatedData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="color:#94a3b8; font-size:0.85rem;">${item.deal_date}</td>
+                    <td><span class="symbol-badge">${item.symbol}</span></td>
+                    <td>${item.client_name}</td>
+                    <td>${getActionBadge(item.buy_sell)}</td>
+                    <td>${Number(item.quantity_traded).toLocaleString('en-IN')}</td>
+                    <td>${formatCurrency(item.trade_price)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Render Pagination Numbers
+            const totalPages = Math.ceil(state.data.length / pageSize) || 1;
+            const pageInfo = document.getElementById(`${type}-page-info`);
             pageInfo.innerHTML = '';
             
-            let startPage = Math.max(1, currentPage - 2);
-            let endPage = Math.min(totalPages, currentPage + 2);
+            // Limit shown page buttons to current +/- 2
+            let startPage = Math.max(1, state.page - 2);
+            let endPage = Math.min(totalPages, state.page + 2);
             
             if (startPage > 1) {
                 pageInfo.innerHTML += `<button onclick="jumpPage('${type}', 1)">1</button>`;
@@ -295,7 +317,7 @@
             }
             
             for (let i = startPage; i <= endPage; i++) {
-                const activeClass = i === currentPage ? 'active' : '';
+                const activeClass = i === state.page ? 'active' : '';
                 pageInfo.innerHTML += `<button class="${activeClass}" onclick="jumpPage('${type}', ${i})">${i}</button>`;
             }
             
@@ -304,112 +326,37 @@
                 pageInfo.innerHTML += `<button onclick="jumpPage('${type}', ${totalPages})">${totalPages}</button>`;
             }
 
-            document.getElementById(prevId).disabled = currentPage === 1;
-            document.getElementById(nextId).disabled = currentPage >= totalPages;
+            document.getElementById(`${type}-prev`).disabled = state.page === 1;
+            document.getElementById(`${type}-next`).disabled = state.page >= totalPages;
         }
 
         function jumpPage(type, pageNum) {
-            if (type === 'fund') {
-                fundPage = pageNum;
-                renderFundTable();
-            } else if (type === 'deals') {
-                dealsPage = pageNum;
-                renderDealsTable();
-            }
+            tableData[type].page = pageNum;
+            renderTable(type);
         }
 
-        function renderFundTable() {
-            const tbody = document.getElementById('fund-body');
-            tbody.innerHTML = '';
-            
-            const start = (fundPage - 1) * pageSize;
-            const end = start + pageSize;
-            const paginatedData = fundData.slice(start, end);
-            
-            paginatedData.forEach(item => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><span class="symbol-badge">${item.symbol}</span></td>
-                    <td class="positive">${formatPercent(item.revenue_growth_pct)}</td>
-                    <td class="positive">${formatPercent(item.profit_growth_pct)}</td>
-                    <td>${formatCurrency(item.latest_revenue)}</td>
-                    <td>${formatCurrency(item.latest_net_income)}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            renderPagination('fund', fundData.length, fundPage, 'fund-page-info', 'fund-prev', 'fund-next');
+        function changePage(type, dir) {
+            tableData[type].page += dir;
+            renderTable(type);
         }
 
-        function changeFundPage(dir) {
-            fundPage += dir;
-            renderFundTable();
-        }
-
-        function renderDealsTable() {
-            const tbody = document.getElementById('deals-body');
-            tbody.innerHTML = '';
-            
-            const start = (dealsPage - 1) * pageSize;
-            const end = start + pageSize;
-            const paginatedData = dealsData.slice(start, end);
-            
-            paginatedData.forEach(item => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td><span class="symbol-badge">${item.symbol}</span></td>
-                    <td>${item.security_name}</td>
-                    <td class="positive">${item.buy_count} Deals</td>
-                    <td>${item.total_bought.toLocaleString('en-IN')} shares</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            renderPagination('deals', dealsData.length, dealsPage, 'deals-page-info', 'deals-prev', 'deals-next');
-        }
-
-        function changeDealsPage(dir) {
-            dealsPage += dir;
-            renderDealsTable();
-        }
-
-        async function loadFundamentals() {
+        async function loadDeals(endpoint, type) {
             try {
-                const res = await fetch('/api/fundamentals/growth');
-                fundData = await res.json();
+                const res = await fetch(endpoint);
+                tableData[type].data = await res.json();
                 
-                document.getElementById('fund-loading').style.display = 'none';
-                document.getElementById('fund-table').style.display = 'table';
-                document.getElementById('fund-pagination').style.display = 'flex';
+                document.getElementById(`${type}-loading`).style.display = 'none';
+                document.getElementById(`${type}-table`).style.display = 'table';
+                document.getElementById(`${type}-pagination`).style.display = 'flex';
                 
-                if (fundData.length === 0) {
-                    document.getElementById('fund-body').innerHTML = '<tr><td colspan="5" style="text-align:center;">No growth stocks found.</td></tr>';
-                    document.getElementById('fund-pagination').style.display = 'none';
+                if (tableData[type].data.length === 0) {
+                    document.getElementById(`${type}-body`).innerHTML = `<tr><td colspan="6" style="text-align:center;">No data found.</td></tr>`;
+                    document.getElementById(`${type}-pagination`).style.display = 'none';
                     return;
                 }
-                renderFundTable();
+                renderTable(type);
             } catch (err) {
-                document.getElementById('fund-loading').innerText = 'Failed to load fundamental data.';
-            }
-        }
-
-        async function loadDeals() {
-            try {
-                const res = await fetch('/api/deals/potential_growth');
-                dealsData = await res.json();
-                
-                document.getElementById('deals-loading').style.display = 'none';
-                document.getElementById('deals-table').style.display = 'table';
-                document.getElementById('deals-pagination').style.display = 'flex';
-                
-                if (dealsData.length === 0) {
-                    document.getElementById('deals-body').innerHTML = '<tr><td colspan="4" style="text-align:center;">No deals data found.</td></tr>';
-                    document.getElementById('deals-pagination').style.display = 'none';
-                    return;
-                }
-                renderDealsTable();
-            } catch (err) {
-                document.getElementById('deals-loading').innerText = 'Failed to load deals data.';
+                document.getElementById(`${type}-loading`).innerText = 'Failed to load data.';
             }
         }
 
@@ -459,8 +406,8 @@
         }
 
         // Initialize
-        loadFundamentals();
-        loadDeals();
+        loadDeals('/api/deals/block', 'block');
+        loadDeals('/api/deals/bulk', 'bulk');
     </script>
 </body>
 </html>

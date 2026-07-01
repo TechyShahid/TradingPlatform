@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProTrade - Live News Radar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0b10;
+            --glass: rgba(255, 255, 255, 0.04);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --accent: #f59e0b;
+            --accent-glow: rgba(245, 158, 11, 0.25);
+            --text: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.15);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.15);
+            --info: #3b82f6;
+            --info-glow: rgba(59, 130, 246, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: var(--bg);
+            background-image:
+                radial-gradient(circle at 15% 15%, #1e1b4b 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, #312e81 0%, transparent 40%),
+                radial-gradient(circle at 50% 50%, #4338ca 0%, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text);
+            min-height: 100vh;
+            padding: 1.5rem 2rem;
+            font-size: 0.9rem;
+        }
+
+        .container {
+            max-width: 95%;
+            margin: 0 auto;
+        }
+
+        /* Glassmorphic Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.2rem 2rem;
+            background: var(--glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .header-title-container {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .header-logo {
+            font-size: 1.8rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(to right, #fcd34d, #f97316, #ef4444);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            border: 1px solid var(--glass-border);
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .btn-accent {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border: none;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+
+        .btn-accent:hover {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+        }
+
+        /* Stats Overview Section */
+        .stats-panel {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 14px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.07);
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 0.2rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-pos { color: var(--success); }
+        .stat-neg { color: var(--danger); }
+        .stat-neu { color: var(--info); }
+
+        /* Sentiment Distribution Bar */
+        .sentiment-bar {
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+            background: rgba(255, 255, 255, 0.05);
+            margin-top: 1rem;
+        }
+
+        .sentiment-segment {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+
+        .seg-pos { background: var(--success); }
+        .seg-neg { background: var(--danger); }
+        .seg-neu { background: var(--info); }
+
+        /* Dashboard Grid Layout */
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Filter Sidebar */
+        .sidebar {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            position: sticky;
+            top: 1.5rem;
+        }
+
+        .sidebar h2 {
+            font-size: 1.1rem;
+            color: #fff;
+            margin-bottom: 1.2rem;
+            font-weight: 500;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 0.5rem;
+        }
+
+        .filter-group {
+            margin-bottom: 1.2rem;
+        }
+
+        .filter-label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .input-text, .select-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 0.7rem;
+            border-radius: 10px;
+            color: var(--text);
+            font-size: 0.85rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .input-text:focus, .select-input:focus {
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        /* Active filter tags */
+        .active-filters {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--accent);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            padding: 0.3rem 0.6rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            gap: 0.4rem;
+            margin-right: 0.4rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .filter-tag-clear {
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .filter-tag-clear:hover {
+            color: #fff;
+        }
+
+        /* News Cards List */
+        .news-panel {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            min-height: 50vh;
+        }
+
+        .news-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.2rem;
+        }
+
+        .news-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 1.2rem;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .news-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: transparent;
+            transition: background 0.3s ease;
+        }
+
+        .news-card.pos-sentiment::before { background: var(--success); }
+        .news-card.neg-sentiment::before { background: var(--danger); }
+        .news-card.neu-sentiment::before { background: var(--info); }
+
+        .news-card:hover {
+            transform: translateX(4px);
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(255, 255, 255, 0.09);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .news-card-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+
+        .meta-left {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .badge-source {
+            background: rgba(255, 255, 255, 0.06);
+            color: #e2e8f0;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .badge-sentiment {
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .badge-pos {
+            background: var(--success-glow);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .badge-neg {
+            background: var(--danger-glow);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .badge-neu {
+            background: var(--info-glow);
+            color: var(--info);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .meta-date {
+            color: var(--text-secondary);
+        }
+
+        .news-title {
+            font-size: 1.15rem;
+            font-weight: 600;
+            line-height: 1.4;
+            color: #fff;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .news-title:hover {
+            color: #fcd34d;
+        }
+
+        .news-summary {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .news-tickers {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+            margin-top: 0.2rem;
+        }
+
+        .ticker-pill {
+            background: rgba(99, 102, 241, 0.12);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .ticker-pill:hover {
+            background: #818cf8;
+            color: #000;
+            transform: scale(1.05);
+        }
+
+        /* Loading / Empty States */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem 2rem;
+            gap: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.05);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: rgba(16, 185, 129, 0.95);
+            color: #fff;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            z-index: 9999;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-weight: 500;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Sync Rotating Icon */
+        .sync-spin {
+            animation: spin 1.2s linear infinite;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-title-container">
+                <span class="header-logo">📰</span>
+                <div>
+                    <h1>Live News Radar</h1>
+                    <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.15rem; letter-spacing: 0.5px; text-transform: uppercase;">Real-Time Financial Sentiment Tracker</div>
+                </div>
+            </div>
+            <div class="nav-controls">
+                <button onclick="syncNews()" id="sync-btn" class="btn btn-accent">
+                    <span id="sync-icon">🔄</span>
+                    <span id="sync-text">Sync News Now</span>
+                </button>
+                <a href="/" class="btn">📈 Volume Spike Radar</a>
+                <a href="/growth" class="btn">🚀 Growth Dashboard</a>
+                <a href="/deals" class="btn">🤝 Recent Deals</a>
+            </div>
+        </header>
+
+        <!-- Stats Overview Panel -->
+        <section class="stats-panel">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <span id="stat-total" class="stat-value">0</span>
+                    <span class="stat-label">Total Articles</span>
+                </div>
+                <div class="stat-card">
+                    <span id="stat-pos" class="stat-value stat-pos">0</span>
+                    <span class="stat-label">🟢 Positive Sentiment</span>
+                </div>
+                <div class="stat-card">
+                    <span id="stat-neg" class="stat-value stat-neg">0</span>
+                    <span class="stat-label">🔴 Negative Sentiment</span>
+                </div>
+                <div class="stat-card">
+                    <span id="stat-neu" class="stat-value stat-neu">0</span>
+                    <span class="stat-label">🔵 Neutral Sentiment</span>
+                </div>
+            </div>
+            <!-- Progress sentiment percentage distribution -->
+            <div class="sentiment-bar">
+                <div id="bar-pos" class="sentiment-segment seg-pos" style="width: 0%"></div>
+                <div id="bar-neu" class="sentiment-segment seg-neu" style="width: 0%"></div>
+                <div id="bar-neg" class="sentiment-segment seg-neg" style="width: 0%"></div>
+            </div>
+        </section>
+
+        <!-- Dashboard main split layout -->
+        <div class="dashboard-layout">
+            <!-- Sidebar Filters -->
+            <aside class="sidebar">
+                <h2>Filters & Search</h2>
+                <div class="filter-group">
+                    <label class="filter-label">Search Headline/Summary</label>
+                    <input type="text" id="search-input" class="input-text" placeholder="Type keywords..." onkeyup="debounceSearch()">
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Filter by Source</label>
+                    <select id="source-filter" class="select-input" onchange="fetchNews()">
+                        <option value="">All Reputed Sources</option>
+                        <option value="Yahoo Finance">Yahoo Finance</option>
+                        <option value="Economic Times">Economic Times (Markets)</option>
+                        <option value="Moneycontrol">Moneycontrol</option>
+                        <option value="MarketWatch">MarketWatch</option>
+                        <option value="CNBC">CNBC Markets</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Filter by Sentiment</label>
+                    <select id="sentiment-filter" class="select-input" onchange="fetchNews()">
+                        <option value="">All Sentiments</option>
+                        <option value="Positive">Positive</option>
+                        <option value="Negative">Negative</option>
+                        <option value="Neutral">Neutral</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">Ticker Search</label>
+                    <input type="text" id="ticker-input" class="input-text" placeholder="e.g. RELIANCE, TCS" onkeyup="debounceSearch()">
+                </div>
+                <div id="active-ticker-container" class="active-filters" style="display: none;">
+                    <label class="filter-label">Active Filters</label>
+                    <div id="ticker-tags-list"></div>
+                </div>
+            </aside>
+
+            <!-- News Articles Feed -->
+            <main class="news-panel">
+                <div id="loading-state" class="loading-container">
+                    <div class="spinner"></div>
+                    <p>Loading latest financial news feed...</p>
+                </div>
+                
+                <div id="empty-state" class="empty-state" style="display: none;">
+                    <div class="empty-icon">📂</div>
+                    <h3>No articles match your criteria</h3>
+                    <p style="margin-top: 0.5rem;">Try adjusting your filters or search query, or click "Sync News Now".</p>
+                </div>
+
+                <div id="news-grid" class="news-grid" style="display: none;">
+                    <!-- Rendered News Cards -->
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast">
+        <span>✅</span>
+        <span id="toast-message">Crawl complete! News feed refreshed.</span>
+    </div>
+
+    <script>
+        let selectedTicker = '';
+        let searchTimeout = null;
+
+        // Fetch news feed on page load
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchNews();
+        });
+
+        // Debounce search typing
+        function debounceSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                fetchNews();
+            }, 300);
+        }
+
+        // Parse query params and fetch news from backend
+        async function fetchNews() {
+            const loadingState = document.getElementById("loading-state");
+            const emptyState = document.getElementById("empty-state");
+            const newsGrid = document.getElementById("news-grid");
+            
+            // Show loading
+            loadingState.style.display = "flex";
+            emptyState.style.display = "none";
+            newsGrid.style.display = "none";
+
+            const searchVal = document.getElementById("search-input").value;
+            const sourceVal = document.getElementById("source-filter").value;
+            const sentimentVal = document.getElementById("sentiment-filter").value;
+            const tickerVal = document.getElementById("ticker-input").value || selectedTicker;
+
+            // Update active ticker tag UI
+            const activeTickerContainer = document.getElementById("active-ticker-container");
+            const tickerTagsList = document.getElementById("ticker-tags-list");
+            if (selectedTicker) {
+                activeTickerContainer.style.display = "block";
+                tickerTagsList.innerHTML = `
+                    <span class="filter-tag">
+                        Stock: ${selectedTicker}
+                        <span class="filter-tag-clear" onclick="clearTickerFilter()">×</span>
+                    </span>
+                `;
+                // Match search input field
+                document.getElementById("ticker-input").value = selectedTicker;
+            } else {
+                activeTickerContainer.style.display = "none";
+            }
+
+            try {
+                // Construct query parameters
+                const params = new URLSearchParams();
+                if (searchVal) params.append("search", searchVal);
+                if (sourceVal) params.append("source", sourceVal);
+                if (sentimentVal) params.append("sentiment", sentimentVal);
+                if (tickerVal) params.append("ticker", tickerVal.trim());
+                params.append("limit", 150); // limit to recent 150 items for dashboard performance
+
+                const response = await fetch(`/api/news?${params.toString()}`);
+                if (!response.ok) throw new Error("Failed to fetch news data");
+                const data = await response.json();
+
+                // Update Stats Panel
+                updateStatsPanel(data.stats);
+
+                const articles = data.news;
+                if (!articles || articles.length === 0) {
+                    loadingState.style.display = "none";
+                    emptyState.style.display = "block";
+                    return;
+                }
+
+                // Render Articles
+                renderArticles(articles);
+
+                loadingState.style.display = "none";
+                newsGrid.style.display = "grid";
+
+            } catch (err) {
+                console.error("Error fetching news feed:", err);
+                loadingState.style.display = "none";
+                emptyState.style.display = "block";
+                emptyState.querySelector("h3").innerText = "Network Error";
+                emptyState.querySelector("p").innerText = "Could not communicate with the Python backend server.";
+            }
+        }
+
+        // Render articles inside news-grid
+        function renderArticles(articles) {
+            const grid = document.getElementById("news-grid");
+            grid.innerHTML = "";
+
+            articles.forEach(art => {
+                const card = document.createElement("div");
+                card.className = `news-card ${getSentimentClass(art.sentiment)}`;
+
+                // Format metadata
+                const formattedDate = formatPubDate(art.published_at);
+                const sentimentBadge = `<span class="badge-sentiment ${getSentimentBadgeClass(art.sentiment)}">${art.sentiment}</span>`;
+                
+                // Format tickers
+                let tickersHtml = "";
+                if (art.ticker) {
+                    const symbols = art.ticker.split(",");
+                    tickersHtml = `
+                        <div class="news-tickers">
+                            ${symbols.map(sym => `<span class="ticker-pill" onclick="filterByTicker('${sym}')">${sym}</span>`).join("")}
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="news-card-meta">
+                        <div class="meta-left">
+                            <span class="badge-source">${art.source}</span>
+                            ${sentimentBadge}
+                        </div>
+                        <span class="meta-date">${formattedDate}</span>
+                    </div>
+                    <a href="${art.url}" target="_blank" class="news-title">${art.title}</a>
+                    <p class="news-summary">${art.summary || "No summary description available."}</p>
+                    ${tickersHtml}
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        // Get CSS class based on sentiment
+        function getSentimentClass(sent) {
+            if (sent === "Positive") return "pos-sentiment";
+            if (sent === "Negative") return "neg-sentiment";
+            return "neu-sentiment";
+        }
+
+        // Get Badge CSS class based on sentiment
+        function getSentimentBadgeClass(sent) {
+            if (sent === "Positive") return "badge-pos";
+            if (sent === "Negative") return "badge-neg";
+            return "badge-neu";
+        }
+
+        // Format raw publication date string
+        function formatPubDate(dateStr) {
+            if (!dateStr) return "";
+            try {
+                // dateStr format is "YYYY-MM-DD HH:MM:SS" (in UTC)
+                // Let's parse as UTC
+                const parts = dateStr.split(/[- :]/);
+                // Months are 0-indexed in JS Dates
+                const utcDate = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], parts[3], parts[4], parts[5]));
+                
+                // Relative time calculations
+                const now = new Date();
+                const diffMs = now - utcDate;
+                const diffMin = Math.round(diffMs / 60000);
+                const diffHrs = Math.round(diffMs / 3600000);
+                const diffDays = Math.round(diffMs / 86400000);
+
+                if (diffMin < 60) {
+                    return diffMin <= 1 ? "Just now" : `${diffMin}m ago`;
+                } else if (diffHrs < 24) {
+                    return `${diffHrs}h ago`;
+                } else if (diffDays <= 7) {
+                    return `${diffDays}d ago`;
+                }
+                
+                // Format standard: e.g., "30 Jun 16:30"
+                const options = { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' };
+                return utcDate.toLocaleDateString(undefined, options);
+            } catch (err) {
+                return dateStr;
+            }
+        }
+
+        // Update top sentiment summary statistics and bar ratios
+        function updateStatsPanel(stats) {
+            const pos = stats.Positive || 0;
+            const neg = stats.Negative || 0;
+            const neu = stats.Neutral || 0;
+            const total = pos + neg + neu;
+
+            document.getElementById("stat-total").innerText = total;
+            document.getElementById("stat-pos").innerText = pos;
+            document.getElementById("stat-neg").innerText = neg;
+            document.getElementById("stat-neu").innerText = neu;
+
+            if (total > 0) {
+                const posPct = (pos / total) * 100;
+                const negPct = (neg / total) * 100;
+                const neuPct = (neu / total) * 100;
+
+                document.getElementById("bar-pos").style.width = `${posPct}%`;
+                document.getElementById("bar-neg").style.width = `${negPct}%`;
+                document.getElementById("bar-neu").style.width = `${neuPct}%`;
+            } else {
+                document.getElementById("bar-pos").style.width = "0%";
+                document.getElementById("bar-neg").style.width = "0%";
+                document.getElementById("bar-neu").style.width = "0%";
+            }
+        }
+
+        // Ticker pill click filter
+        function filterByTicker(symbol) {
+            selectedTicker = symbol;
+            document.getElementById("ticker-input").value = symbol;
+            fetchNews();
+        }
+
+        // Clear active ticker tag
+        function clearTickerFilter() {
+            selectedTicker = '';
+            document.getElementById("ticker-input").value = '';
+            fetchNews();
+        }
+
+        // Sync News manually (POST API call)
+        async function syncNews() {
+            const syncBtn = document.getElementById("sync-btn");
+            const syncIcon = document.getElementById("sync-icon");
+            const syncText = document.getElementById("sync-text");
+            
+            // Start spinning & disable
+            syncBtn.disabled = true;
+            syncIcon.classList.add("sync-spin");
+            syncText.innerText = "Syncing Markets...";
+
+            try {
+                const response = await fetch("/api/news/crawl", {
+                    method: "POST"
+                });
+                
+                if (!response.ok) throw new Error("Sync failed");
+                const resData = await response.json();
+                
+                // Show toast notification
+                const toast = document.getElementById("toast");
+                const toastMsg = document.getElementById("toast-message");
+                toastMsg.innerText = `Crawl complete! Added ${resData.new_articles_count} new articles.`;
+                toast.classList.add("show");
+                
+                setTimeout(() => {
+                    toast.classList.remove("show");
+                }, 4000);
+
+                // Fetch new news records
+                fetchNews();
+
+            } catch (err) {
+                console.error("Error during manual sync:", err);
+                alert("Failed to sync news. Please check python console log.");
+            } finally {
+                // Reset button state
+                syncBtn.disabled = false;
+                syncIcon.classList.remove("sync-spin");
+                syncText.innerText = "Sync News Now";
+            }
+        }
+    </script>
+</body>
+
+</html>

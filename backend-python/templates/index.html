@@ -1036,6 +1036,9 @@
                 <button class="tab-btn" data-view="deals">🤝 Recent Deals</button>
                 <button class="tab-btn" data-view="growth">🚀 Growth Engine</button>
                 <button class="tab-btn" data-view="news">📰 Live News</button>
+                {% if session.get('user') and 'stock_admin' in (session.get('user').get('entitlements') or '') %}
+                <button class="tab-btn" data-view="admin">🛡️ Admin Panel</button>
+                {% endif %}
             </nav>
         </header>
 
@@ -1406,6 +1409,47 @@
         </div>
     </div>
 
+    <!-- 5. Admin Panel View -->
+    {% if session.get('user') and 'stock_admin' in (session.get('user').get('entitlements') or '') %}
+    <div id="view-admin" class="view-panel">
+        <div class="card" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem;">
+            <div style="flex: 1; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.1rem;">🛡️</span>
+                <div>
+                    <h2 style="font-size: 0.95rem; font-weight: 600; color: #fff;">User Management Dashboard</h2>
+                    <p style="font-size: 0.65rem; color: var(--text-secondary);">Manage application users and security entitlements</p>
+                </div>
+            </div>
+            <div class="filter-group" style="margin-bottom: 0;">
+                <input type="text" id="admin-search-input" class="input-text" placeholder="Search name or email..." onkeyup="AdminController.filterUsers()" style="min-width: 240px;">
+            </div>
+        </div>
+
+        <div class="card" style="padding: 0;">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Full Name</th>
+                            <th>Email Address</th>
+                            <th>Last Login</th>
+                            <th>Entitlements</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-users-body">
+                        <!-- Data injected dynamically -->
+                    </tbody>
+                </table>
+                <div id="admin-empty-state" class="empty-state" style="display: none;">
+                    No users found.
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- GLOBAL TOAST NOTIFICATION -->
     <div id="toast" class="toast">
         <span>✅</span>
@@ -1416,7 +1460,7 @@
     <script>
         // --- 1. Router & Tab Switching System ---
         const Router = {
-            routes: ['volume', 'deals', 'growth', 'news'],
+            routes: ['volume', 'deals', 'growth', 'news' {% if session.get('user') and 'stock_admin' in (session.get('user').get('entitlements') or '') %}, 'admin'{% endif %}],
             init() {
                 // Determine initial view based on URL path
                 let path = window.location.pathname.replace('/', '').toLowerCase();
@@ -1478,6 +1522,9 @@
                 } else if (viewName === 'news') {
                     subtitle.innerText = 'Real-Time Financial Sentiment Tracker';
                     NewsController.init();
+                } else if (viewName === 'admin') {
+                    subtitle.innerText = 'Platform Security & Entitlements Control';
+                    AdminController.init();
                 }
             }
         };
@@ -2276,6 +2323,137 @@
                 }
             }
         };
+
+        {% if session.get('user') and 'stock_admin' in (session.get('user').get('entitlements') or '') %}
+        // --- 5. Admin Controller ---
+        const AdminController = {
+            initialized: false,
+            usersData: [],
+
+            init() {
+                if (this.initialized) return;
+                this.initialized = true;
+                this.fetchUsers();
+            },
+
+            async fetchUsers() {
+                const tbody = document.getElementById("admin-users-body");
+                tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading user database...</td></tr>';
+                document.getElementById("admin-empty-state").style.display = "none";
+
+                try {
+                    const response = await fetch("/api/admin/users");
+                    if (!response.ok) throw new Error("Failed to fetch users");
+                    const data = await response.json();
+                    this.usersData = data;
+                    this.renderUsers(data);
+                } catch (err) {
+                    console.error("Error fetching users list:", err);
+                    tbody.innerHTML = '<tr><td colspan="6" class="loading" style="color:var(--danger);">Error loading users list. Forbidden or server offline.</td></tr>';
+                }
+            },
+
+            renderUsers(users) {
+                const tbody = document.getElementById("admin-users-body");
+                tbody.innerHTML = "";
+
+                if (users.length === 0) {
+                    document.getElementById("admin-empty-state").style.display = "block";
+                    return;
+                }
+                document.getElementById("admin-empty-state").style.display = "none";
+
+                users.forEach(u => {
+                    const tr = document.createElement("tr");
+                    
+                    const entList = u.entitlements ? u.entitlements.split(',').map(e => e.trim()).filter(Boolean) : [];
+                    let entHtml = "";
+                    if (entList.includes('stock_admin')) {
+                        entHtml += `<span class="ratio-tag ratio-high" style="font-size:0.6rem; margin-right:4px;">stock_admin</span>`;
+                    }
+                    if (entList.length === 0 || (entList.length === 1 && entList[0] === '')) {
+                        entHtml += `<span class="ratio-tag ratio-low" style="font-size:0.6rem;">None (User)</span>`;
+                    } else {
+                        entList.forEach(e => {
+                            if (e !== 'stock_admin') {
+                                entHtml += `<span class="ratio-tag ratio-mid" style="font-size:0.6rem; margin-right:4px;">${e}</span>`;
+                            }
+                        });
+                    }
+
+                    const isAdmin = entList.includes('stock_admin');
+                    const actionBtnText = isAdmin ? "Revoke Admin" : "Grant Admin";
+                    const actionBtnClass = isAdmin ? "btn-page" : "btn";
+                    const actionBtnStyle = isAdmin ? "background:#ef4444; border-color:#ef4444; padding:0.2rem 0.5rem; font-size:0.6rem;" : "background:#10b981; border-color:#10b981; padding:0.2rem 0.5rem; font-size:0.6rem; color:white; box-shadow:none;";
+                    
+                    tr.innerHTML = `
+                        <td>${u.id}</td>
+                        <td style="font-weight:600; color:#fff;">${u.name || 'N/A'}</td>
+                        <td>${u.email}</td>
+                        <td style="color:#94a3b8; font-size:0.65rem;">${u.last_login || 'Never'}</td>
+                        <td>${entHtml}</td>
+                        <td>
+                            <button class="${actionBtnClass}" style="${actionBtnStyle}" onclick="AdminController.toggleAdmin('${u.email}', ${isAdmin})">
+                                ${actionBtnText}
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            },
+
+            filterUsers() {
+                const query = document.getElementById("admin-search-input").value.toLowerCase();
+                const filtered = this.usersData.filter(u => {
+                    const name = (u.name || '').toLowerCase();
+                    const email = (u.email || '').toLowerCase();
+                    return name.includes(query) || email.includes(query);
+                });
+                this.renderUsers(filtered);
+            },
+
+            async toggleAdmin(email, currentIsAdmin) {
+                let newEnts = "";
+                if (!currentIsAdmin) {
+                    newEnts = "stock_admin";
+                }
+
+                if (currentIsAdmin) {
+                    const profileRes = await fetch("/api/user/profile");
+                    if (profileRes.ok) {
+                        const profile = await profileRes.json();
+                        if (profile.email === email) {
+                            alert("Cannot demote yourself to prevent lock out!");
+                            return;
+                        }
+                    }
+                }
+
+                try {
+                    const response = await fetch("/api/admin/users/update", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email: email, entitlements: newEnts })
+                    });
+                    
+                    const resData = await response.json();
+                    if (!response.ok) {
+                        throw new Error(resData.error || "Failed to update user entitlements");
+                    }
+                    
+                    const toast = document.getElementById("toast");
+                    const toastMsg = document.getElementById("toast-message");
+                    toastMsg.innerText = `Success: Entitlements updated for ${email}`;
+                    toast.classList.add("show");
+                    setTimeout(() => toast.classList.remove("show"), 3000);
+                    
+                    this.fetchUsers();
+                } catch (err) {
+                    alert("Error: " + err.message);
+                }
+            }
+        };
+        {% endif %}
 
         // --- 6. Initialize Router on Load ---
         document.addEventListener("DOMContentLoaded", () => {

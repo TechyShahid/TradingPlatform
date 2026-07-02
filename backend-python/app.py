@@ -81,9 +81,29 @@ def restrict_access():
     # Check if user is authenticated in current session
     if not session.get('user'):
         if os.environ.get('DEV_BYPASS') == 'true':
+            try:
+                conn = database.get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT INTO users (email, name, last_login, entitlements)
+                    VALUES ('dev@protrade.local', 'Dev Tester', datetime('now', 'localtime'), 'stock_admin')
+                    ON CONFLICT(email) DO UPDATE SET
+                        last_login=excluded.last_login,
+                        entitlements=COALESCE(users.entitlements, excluded.entitlements)
+                ''')
+                conn.commit()
+                cursor.execute("SELECT entitlements FROM users WHERE email = 'dev@protrade.local'")
+                row = cursor.fetchone()
+                entitlements = row['entitlements'] if row else 'stock_admin'
+                conn.close()
+            except Exception as db_err:
+                print(f"[Database] Error seeding dev user: {db_err}")
+                entitlements = 'stock_admin'
+
             session['user'] = {
                 'email': 'dev@protrade.local',
-                'name': 'Dev Tester'
+                'name': 'Dev Tester',
+                'entitlements': entitlements
             }
             return None
         # For API endpoints, return 401 Unauthorized
@@ -139,30 +159,49 @@ def login_callback():
         if not email:
             return "Unable to retrieve email ID from Google profile", 400
             
-        # Initialize session profile
         name = user_info.get('name', '')
-        session['user'] = {
-            'email': email,
-            'name': name
-        }
         
         # Save or update user profile in SQLite database
+        entitlements = ''
         try:
             conn = database.get_db_connection()
             cursor = conn.cursor()
+            
+            # Fetch existing entitlements to avoid overwriting them
+            cursor.execute("SELECT entitlements FROM users WHERE email = ?", (email,))
+            row = cursor.fetchone()
+            
+            # Grant 'stock_admin' if it's the dev user or if it's the very first user in the system
+            cursor.execute("SELECT COUNT(*) FROM users")
+            user_count = cursor.fetchone()[0]
+            
+            if row and row['entitlements'] is not None:
+                entitlements = row['entitlements']
+            else:
+                if email == 'dev@protrade.local' or user_count == 0:
+                    entitlements = 'stock_admin'
+                    
             cursor.execute('''
-                INSERT INTO users (email, name, last_login)
-                VALUES (?, ?, datetime('now', 'localtime'))
+                INSERT INTO users (email, name, last_login, entitlements)
+                VALUES (?, ?, datetime('now', 'localtime'), ?)
                 ON CONFLICT(email) DO UPDATE SET
                     name=excluded.name,
-                    last_login=excluded.last_login
-            ''', (email, name))
+                    last_login=excluded.last_login,
+                    entitlements=COALESCE(users.entitlements, excluded.entitlements)
+            ''', (email, name, entitlements))
             conn.commit()
             conn.close()
-            print(f"[Database] Logged user session for: {email}")
+            print(f"[Database] Logged user session for: {email} with entitlements: {entitlements}")
         except Exception as db_err:
             print(f"[Database] Error logging user session: {db_err}")
             
+        # Initialize session profile
+        session['user'] = {
+            'email': email,
+            'name': name,
+            'entitlements': entitlements
+        }
+        
         # Redirect back to original resource
         next_url = session.pop('next_url', '/')
         return redirect(next_url)
@@ -179,7 +218,101 @@ def get_user_profile():
     user = session.get('user')
     if not user:
         return jsonify({'error': 'Unauthorized'}), 401
+    
+    # Query database to get latest profile information (e.g. entitlements)
+    try:
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, entitlements FROM users WHERE email = ?", (user['email'],))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            user['name'] = row['name']
+            user['entitlements'] = row['entitlements'] or ''
+            # Update session as well
+            session['user'] = user
+    except Exception as e:
+        print(f"[Database] Error updating profile info: {e}")
+        
     return jsonify(user)
+
+def check_admin_entitlement():
+    user = session.get('user')
+    if not user:
+        return False
+    
+    # Check latest from DB to be secure
+    try:
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT entitlements FROM users WHERE email = ?", (user['email'],))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            entitlements = row['entitlements'] or ''
+            return 'stock_admin' in [e.strip() for e in entitlements.split(',')]
+    except Exception as e:
+        print(f"[Database] Error checking admin status: {e}")
+        
+    # Fallback to session
+    return 'stock_admin' in [e.strip() for e in user.get('entitlements', '').split(',')]
+
+@app.route('/api/admin/users')
+def list_admin_users():
+    if not check_admin_entitlement():
+        return jsonify({'error': 'Forbidden: stock_admin entitlement required'}), 403
+        
+    try:
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, email, name, last_login, entitlements FROM users ORDER BY id ASC")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        users_list = []
+        for r in rows:
+            users_list.append({
+                'id': r['id'],
+                'email': r['email'],
+                'name': r['name'],
+                'last_login': r['last_login'],
+                'entitlements': r['entitlements'] or ''
+            })
+        return jsonify(users_list)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/update', methods=['POST'])
+def update_user_entitlements():
+    if not check_admin_entitlement():
+        return jsonify({'error': 'Forbidden: stock_admin entitlement required'}), 403
+        
+    data = request.json or {}
+    user_email = data.get('email')
+    new_entitlements = data.get('entitlements', '')
+    
+    if not user_email:
+        return jsonify({'error': 'User email required'}), 400
+        
+    try:
+        conn = database.get_db_connection()
+        cursor = conn.cursor()
+        
+        # Prevent self-demotion to avoid locking out the admin
+        current_user = session.get('user')
+        if current_user and current_user['email'] == user_email:
+            # Check if we are removing stock_admin
+            if 'stock_admin' not in [e.strip() for e in new_entitlements.split(',')]:
+                conn.close()
+                return jsonify({'error': 'Cannot demote yourself to prevent lockout!'}), 400
+                
+        cursor.execute("UPDATE users SET entitlements = ? WHERE email = ?", (new_entitlements, user_email))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': f'Entitlements updated for {user_email}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # Global state to track analysis
 analysis_state = {
@@ -218,6 +351,12 @@ def run_analysis_task(check_trend=False, check_price_move=False):
 @app.route('/deals')
 @app.route('/news')
 def index():
+    return render_template('index.html')
+
+@app.route('/admin')
+def admin_view():
+    if not check_admin_entitlement():
+        return redirect('/')
     return render_template('index.html')
 
 @app.route('/api/analyze', methods=['POST'])

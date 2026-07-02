@@ -91,10 +91,17 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE,
             name TEXT,
-            last_login TEXT
+            last_login TEXT,
+            entitlements TEXT
         )
     ''')
     
+    # Run migration to add entitlements column if table existed without it
+    try:
+        cursor.execute('ALTER TABLE users ADD COLUMN entitlements TEXT')
+    except sqlite3.OperationalError:
+        pass # Column already exists
+        
     conn.commit()
     conn.close()
 

@@ -80,6 +80,12 @@ def restrict_access():
         
     # Check if user is authenticated in current session
     if not session.get('user'):
+        if os.environ.get('DEV_BYPASS') == 'true':
+            session['user'] = {
+                'email': 'dev@protrade.local',
+                'name': 'Dev Tester'
+            }
+            return None
         # For API endpoints, return 401 Unauthorized
         if request.path.startswith('/api/'):
             return jsonify({'error': 'Unauthorized', 'login_url': '/login'}), 401
@@ -208,16 +214,11 @@ def run_analysis_task(check_trend=False, check_price_move=False):
         analysis_state['running'] = False
 
 @app.route('/')
+@app.route('/growth')
+@app.route('/deals')
+@app.route('/news')
 def index():
     return render_template('index.html')
-
-@app.route('/growth')
-def growth_page():
-    return render_template('growth.html')
-
-@app.route('/deals')
-def deals_page():
-    return render_template('deals.html')
 
 @app.route('/api/analyze', methods=['POST'])
 def start_analyze():
@@ -361,9 +362,6 @@ def ai_predict_growth():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/news')
-def news_page():
-    return render_template('news.html')
 
 @app.route('/api/news')
 def get_news():

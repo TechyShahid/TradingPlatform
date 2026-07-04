@@ -4,4 +4,4 @@ pandas
 numpy
 flask
 flask-cors
-
+psycopg2-binary

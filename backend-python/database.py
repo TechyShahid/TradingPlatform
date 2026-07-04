@@ -2,12 +2,81 @@ import sqlite3
 import os
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'nse_deals.db')
+POSTGRES_URL = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL')
+
+class PostgreSQLCursorWrapper:
+    def __init__(self, cursor):
+        self.cursor = cursor
+
+    def execute(self, query, params=None):
+        if params is not None:
+            query = query.replace('?', '%s')
+        if "AUTOINCREMENT" in query:
+            query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+        self.cursor.execute(query, params)
+
+    def fetchall(self):
+        rows = self.cursor.fetchall()
+        if rows and hasattr(rows[0], 'keys'):
+            return [dict(r) for r in rows]
+        return rows
+
+    def fetchone(self):
+        row = self.cursor.fetchone()
+        if row and hasattr(row, 'keys'):
+            return dict(row)
+        return row
+
+    def executemany(self, query, params_list):
+        query = query.replace('?', '%s')
+        self.cursor.executemany(query, params_list)
+
+    @property
+    def rowcount(self):
+        return self.cursor.rowcount
+
+    @property
+    def description(self):
+        return self.cursor.description
+
+class PostgreSQLConnectionWrapper:
+    def __init__(self, conn):
+        self.conn = conn
+        self._row_factory = None
+
+    @property
+    def row_factory(self):
+        return self._row_factory
+
+    @row_factory.setter
+    def row_factory(self, val):
+        self._row_factory = val
+
+    def cursor(self):
+        from psycopg2.extras import RealDictCursor
+        if self._row_factory is not None:
+            return PostgreSQLCursorWrapper(self.conn.cursor(cursor_factory=RealDictCursor))
+        return PostgreSQLCursorWrapper(self.conn.cursor())
+
+    def commit(self):
+        self.conn.commit()
+
+    def rollback(self):
+        self.conn.rollback()
+
+    def close(self):
+        self.conn.close()
 
 def get_db_connection():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if POSTGRES_URL:
+        import psycopg2
+        conn = psycopg2.connect(POSTGRES_URL)
+        return PostgreSQLConnectionWrapper(conn)
+    else:
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
 
 def init_db():
     conn = get_db_connection()

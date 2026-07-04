@@ -87,11 +87,11 @@ def restrict_access():
                 cursor = conn.cursor()
                 cursor.execute('''
                     INSERT INTO users (email, name, last_login, entitlements)
-                    VALUES ('dev@protrade.local', 'Dev Tester', datetime('now', 'localtime'), 'stock_admin')
+                    VALUES ('dev@protrade.local', 'Dev Tester', ?, 'stock_admin')
                     ON CONFLICT(email) DO UPDATE SET
                         last_login=excluded.last_login,
                         entitlements=COALESCE(users.entitlements, excluded.entitlements)
-                ''')
+                ''', (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),))
                 conn.commit()
                 cursor.execute("SELECT entitlements FROM users WHERE email = 'dev@protrade.local'")
                 row = cursor.fetchone()
@@ -184,12 +184,12 @@ def login_callback():
                     
             cursor.execute('''
                 INSERT INTO users (email, name, last_login, entitlements)
-                VALUES (?, ?, datetime('now', 'localtime'), ?)
+                VALUES (?, ?, ?, ?)
                 ON CONFLICT(email) DO UPDATE SET
                     name=excluded.name,
                     last_login=excluded.last_login,
                     entitlements=COALESCE(users.entitlements, excluded.entitlements)
-            ''', (email, name, entitlements))
+            ''', (email, name, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), entitlements))
             conn.commit()
             conn.close()
             print(f"[Database] Logged user session for: {email} with entitlements: {entitlements}")
@@ -412,9 +412,9 @@ def sync_ipos():
             
             cur.execute('''
                 UPDATE ipos 
-                SET retail_x = ?, hni_x = ?, qib_x = ?, total_x = ?, updated_at = datetime('now', 'localtime')
+                SET retail_x = ?, hni_x = ?, qib_x = ?, total_x = ?, updated_at = ?
                 WHERE symbol = ?
-            ''', (new_retail, new_hni, new_qib, new_total, symbol))
+            ''', (new_retail, new_hni, new_qib, new_total, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), symbol))
             
         conn.commit()
         conn.close()
@@ -1082,7 +1082,7 @@ def seed_ipos_data():
                     company_name, symbol, issue_start_date, issue_end_date, 
                     price_range, issue_size, lot_size, status, 
                     retail_x, hni_x, qib_x, total_x, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(symbol) DO UPDATE SET
                     status=excluded.status,
                     retail_x=excluded.retail_x,
@@ -1093,7 +1093,8 @@ def seed_ipos_data():
             ''', (
                 ipo["company_name"], ipo["symbol"], ipo["issue_start_date"], ipo["issue_end_date"],
                 ipo["price_range"], ipo["issue_size"], ipo["lot_size"], ipo["status"],
-                ipo["retail_x"], ipo["hni_x"], ipo["qib_x"], ipo["total_x"]
+                ipo["retail_x"], ipo["hni_x"], ipo["qib_x"], ipo["total_x"],
+                datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             ))
         conn.commit()
         conn.close()

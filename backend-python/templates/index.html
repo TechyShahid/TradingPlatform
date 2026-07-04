@@ -41,6 +41,7 @@
                 <button class="tab-btn" data-view="deals">🤝 Recent Deals</button>
                 <button class="tab-btn" data-view="growth">🚀 Growth Engine</button>
                 <button class="tab-btn" data-view="news">📰 Live News</button>
+                <button class="tab-btn" data-view="ipo">📅 IPO Tracker</button>
                 {% if session.get('user') and 'stock_admin' in (session.get('user').get('entitlements') or '') %}
                 <button class="tab-btn" data-view="admin">🛡️ Admin Panel</button>
                 {% endif %}
@@ -454,6 +455,46 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- 6. IPO Tracker View -->
+    <div id="view-ipo" class="view-panel">
+        <div class="card" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem;">
+            <div style="flex: 1; display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.1rem;">📅</span>
+                <div>
+                    <h2 style="font-size: 0.95rem; font-weight: 600; color: #fff;">Upcoming & Live IPO Tracker</h2>
+                    <p style="font-size: 0.65rem; color: var(--text-secondary);">Track active public offerings and live retail/institutional subscription metrics</p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button class="btn btn-accent" id="ipo-sync-btn" onclick="IpoController.syncSubscriptions()">
+                    <span id="ipo-sync-icon">🔄</span> <span id="ipo-sync-text">Sync Subscriptions</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- IPO Status Tab Filter -->
+        <div style="display: flex; gap: 0.35rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+            <button class="btn-page active" id="ipo-filter-all" onclick="IpoController.filterStatus('All')" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">All Offerings</button>
+            <button class="btn-page" id="ipo-filter-active" onclick="IpoController.filterStatus('Active')" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">Active Bidding</button>
+            <button class="btn-page" id="ipo-filter-upcoming" onclick="IpoController.filterStatus('Upcoming')" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">Upcoming</button>
+            <button class="btn-page" id="ipo-filter-closed" onclick="IpoController.filterStatus('Closed')" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">Closed / Listing</button>
+        </div>
+
+        <!-- Main Layout: Grid of IPO Summary Cards & Subscriptions -->
+        <div id="ipo-loading" class="loading" style="padding: 4rem;">Loading IPO market tracker data...</div>
+        <div id="ipo-empty" class="empty-state" style="display: none; padding: 4rem;">
+            <div class="empty-icon">📂</div>
+            <h3>No IPOs Found</h3>
+            <p style="margin-top: 0.5rem;">There are no offerings matching this status filter.</p>
+        </div>
+
+        <div id="ipo-content" style="display: none;">
+            <div id="ipo-grid" class="ipo-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
+                <!-- Injected dynamically -->
+            </div>
+        </div>
+    </div>
 
     <!-- GLOBAL TOAST NOTIFICATION -->
     <div id="toast" class="toast">

@@ -1,6 +1,6 @@
         // --- 1. Router & Tab Switching System ---
         const Router = {
-            routes: ['volume', 'deals', 'growth', 'news'],
+            routes: ['volume', 'deals', 'growth', 'news', 'ipo'],
             init() {
                 // Add admin route if user is entitled
                 if (window.ProTradeConfig && window.ProTradeConfig.user && window.ProTradeConfig.user.entitlements.includes('stock_admin')) {
@@ -71,6 +71,9 @@
                 } else if (viewName === 'admin') {
                     subtitle.innerText = 'Platform Security & Entitlements Control';
                     AdminController.init();
+                } else if (viewName === 'ipo') {
+                    subtitle.innerText = 'Upcoming Public Offerings & Live Subscription Status';
+                    IpoController.init();
                 }
             }
         };
@@ -999,7 +1002,190 @@
                 }
             }
         };
-        // --- 6. Initialize Router on Load ---
+
+        // --- 6. IPO Tracker Controller ---
+        const IpoController = {
+            initialized: false,
+            iposData: [],
+            activeFilter: 'All',
+
+            init() {
+                if (this.initialized) return;
+                this.initialized = true;
+                this.fetchIpos();
+            },
+
+            async fetchIpos() {
+                const loading = document.getElementById("ipo-loading");
+                const content = document.getElementById("ipo-content");
+                const empty = document.getElementById("ipo-empty");
+
+                loading.style.display = "block";
+                content.style.display = "none";
+                empty.style.display = "none";
+
+                try {
+                    const response = await fetch("/api/ipos");
+                    if (!response.ok) throw new Error("Failed to fetch IPOs");
+                    const data = await response.json();
+                    this.iposData = data;
+                    this.renderIpos();
+                } catch (err) {
+                    console.error("Error loading IPOs:", err);
+                    loading.innerHTML = `<span style="color:var(--danger)">Error loading IPO data. Network or server error.</span>`;
+                }
+            },
+
+            renderIpos() {
+                const loading = document.getElementById("ipo-loading");
+                const content = document.getElementById("ipo-content");
+                const empty = document.getElementById("ipo-empty");
+                const grid = document.getElementById("ipo-grid");
+
+                loading.style.display = "none";
+                grid.innerHTML = "";
+
+                const filtered = this.iposData.filter(ipo => {
+                    if (this.activeFilter === 'All') return true;
+                    return ipo.status.toLowerCase() === this.activeFilter.toLowerCase();
+                });
+
+                if (filtered.length === 0) {
+                    content.style.display = "none";
+                    empty.style.display = "block";
+                    return;
+                }
+
+                empty.style.display = "none";
+                content.style.display = "block";
+
+                filtered.forEach(ipo => {
+                    const card = document.createElement("div");
+                    card.className = "ipo-card";
+
+                    const badgeClass = `status-${ipo.status.toLowerCase()}`;
+                    
+                    let subHtml = "";
+                    if (ipo.status === 'Active' || ipo.status === 'Closed') {
+                        subHtml = `
+                            <div class="ipo-subscriptions">
+                                <div class="ipo-sub-title">Subscription Demand (Multipliers)</div>
+                                ${this.renderProgressBar("Retail", ipo.retail_x, 15)}
+                                ${this.renderProgressBar("HNI (NII)", ipo.hni_x, 30)}
+                                ${this.renderProgressBar("Institutional (QIB)", ipo.qib_x, 50)}
+                                <div style="border-top:1px dashed rgba(255,255,255,0.05); padding-top:0.4rem; display:flex; justify-content:space-between; align-items:center;">
+                                    <span style="font-size:0.6rem; color:var(--text-secondary);">Total Demand</span>
+                                    <span class="ratio-tag ${ipo.total_x >= 1.0 ? 'ratio-high' : 'ratio-mid'}" style="font-size:0.65rem;">${ipo.total_x}x</span>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        subHtml = `
+                            <div class="ipo-subscriptions" style="text-align:center; padding:1.2rem; background:rgba(255,255,255,0.01); border-radius:8px;">
+                                <span style="font-size:0.65rem; color:var(--text-secondary);">Subscription bids open on ${ipo.issue_start_date}</span>
+                            </div>
+                        `;
+                    }
+
+                    card.innerHTML = `
+                        <div class="ipo-header">
+                            <div class="ipo-title">${ipo.company_name}</div>
+                            <span class="ipo-status-badge ${badgeClass}">${ipo.status}</span>
+                        </div>
+                        <div style="font-size:0.6rem; color:#94a3b8; font-weight:600;">Symbol: ${ipo.symbol}</div>
+                        <div class="ipo-details-grid">
+                            <div class="ipo-detail-item">
+                                <span class="ipo-detail-label">Issue Period</span>
+                                <span class="ipo-detail-value" style="font-size:0.6rem;">${ipo.issue_start_date} to ${ipo.issue_end_date}</span>
+                            </div>
+                            <div class="ipo-detail-item">
+                                <span class="ipo-detail-label">Price Range</span>
+                                <span class="ipo-detail-value">${ipo.price_range}</span>
+                            </div>
+                            <div class="ipo-detail-item">
+                                <span class="ipo-detail-label">Issue Size</span>
+                                <span class="ipo-detail-value">${ipo.issue_size}</span>
+                            </div>
+                            <div class="ipo-detail-item">
+                                <span class="ipo-detail-label">Min Lot Size</span>
+                                <span class="ipo-detail-value">${ipo.lot_size} Shares</span>
+                            </div>
+                        </div>
+                        ${subHtml}
+                    `;
+                    grid.appendChild(card);
+                });
+            },
+
+            renderProgressBar(label, multiplier, maxScale) {
+                const percentage = Math.min(100, Math.max(0, (multiplier / maxScale) * 100));
+                
+                let fillClass = "fill-low";
+                if (multiplier === 0) fillClass = "fill-empty";
+                else if (multiplier >= 1.0) fillClass = "fill-high";
+                else if (multiplier >= 0.5) fillClass = "fill-mid";
+
+                return `
+                    <div class="sub-bar-container">
+                        <div class="sub-bar-header">
+                            <span style="color:var(--text-secondary); font-size:0.6rem;">${label}</span>
+                            <span style="font-weight:600; color:#fff; font-size:0.6rem;">${multiplier}x</span>
+                        </div>
+                        <div class="sub-bar-bg">
+                            <div class="sub-bar-fill ${fillClass}" style="width: ${percentage}%;"></div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            filterStatus(status) {
+                this.activeFilter = status;
+                
+                const buttons = ['all', 'active', 'upcoming', 'closed'];
+                buttons.forEach(btn => {
+                    const el = document.getElementById(`ipo-filter-${btn}`);
+                    if (btn.toLowerCase() === status.toLowerCase()) {
+                        el.classList.add('active');
+                    } else {
+                        el.classList.remove('active');
+                    }
+                });
+
+                this.renderIpos();
+            },
+
+            async syncSubscriptions() {
+                const btn = document.getElementById("ipo-sync-btn");
+                const icon = document.getElementById("ipo-sync-icon");
+                const text = document.getElementById("ipo-sync-text");
+
+                btn.disabled = true;
+                icon.classList.add("sync-spin");
+                text.innerText = "Syncing...";
+
+                try {
+                    const response = await fetch("/api/ipos/sync", { method: "POST" });
+                    if (!response.ok) throw new Error("Sync failed");
+                    
+                    const toast = document.getElementById("toast");
+                    const toastMsg = document.getElementById("toast-message");
+                    toastMsg.innerText = "Subscription multipliers sync completed!";
+                    toast.classList.add("show");
+                    setTimeout(() => toast.classList.remove("show"), 3000);
+
+                    this.fetchIpos();
+                } catch (err) {
+                    console.error("Error during manual sync:", err);
+                    alert("Failed to sync subscriptions.");
+                } finally {
+                    btn.disabled = false;
+                    icon.classList.remove("sync-spin");
+                    text.innerText = "Sync Subscriptions";
+                }
+            }
+        };
+
+        // --- 7. Initialize Router on Load ---
         document.addEventListener("DOMContentLoaded", () => {
             Router.init();
         });

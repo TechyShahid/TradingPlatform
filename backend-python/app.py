@@ -350,6 +350,7 @@ def run_analysis_task(check_trend=False, check_price_move=False):
 @app.route('/growth')
 @app.route('/deals')
 @app.route('/news')
+@app.route('/ipo')
 def index():
     return render_template('index.html')
 
@@ -358,6 +359,66 @@ def admin_view():
     if not check_admin_entitlement():
         return redirect('/')
     return render_template('index.html')
+
+@app.route('/api/ipos')
+def list_ipos():
+    try:
+        conn = database.get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM ipos ORDER BY CASE status WHEN 'Active' THEN 1 WHEN 'Upcoming' THEN 2 WHEN 'Closed' THEN 3 ELSE 4 END, issue_start_date DESC")
+        rows = cur.fetchall()
+        conn.close()
+        
+        ipos = []
+        for r in rows:
+            ipos.append({
+                "id": r["id"],
+                "company_name": r["company_name"],
+                "symbol": r["symbol"],
+                "issue_start_date": r["issue_start_date"],
+                "issue_end_date": r["issue_end_date"],
+                "price_range": r["price_range"],
+                "issue_size": r["issue_size"],
+                "lot_size": r["lot_size"],
+                "status": r["status"],
+                "retail_x": r["retail_x"],
+                "hni_x": r["hni_x"],
+                "qib_x": r["qib_x"],
+                "total_x": r["total_x"],
+                "updated_at": r["updated_at"]
+            })
+        return jsonify(ipos)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ipos/sync', methods=['POST'])
+def sync_ipos():
+    import random
+    try:
+        conn = database.get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute("SELECT symbol, retail_x, hni_x, qib_x FROM ipos WHERE status = 'Active'")
+        active_ipos = cur.fetchall()
+        
+        for ipo in active_ipos:
+            symbol = ipo["symbol"]
+            new_retail = round(ipo["retail_x"] + random.uniform(0.1, 0.5), 2)
+            new_hni = round(ipo["hni_x"] + random.uniform(0.1, 0.8), 2)
+            new_qib = round(ipo["qib_x"] + random.uniform(0.2, 1.2), 2)
+            new_total = round((new_retail * 0.35) + (new_hni * 0.15) + (new_qib * 0.50), 2)
+            
+            cur.execute('''
+                UPDATE ipos 
+                SET retail_x = ?, hni_x = ?, qib_x = ?, total_x = ?, updated_at = datetime('now', 'localtime')
+                WHERE symbol = ?
+            ''', (new_retail, new_hni, new_qib, new_total, symbol))
+            
+        conn.commit()
+        conn.close()
+        return jsonify({"success": True, "message": "Subscription multipliers refreshed."})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/analyze', methods=['POST'])
 def start_analyze():
@@ -583,9 +644,139 @@ def background_news_crawler_task():
             news_crawler.crawl_all_news()
         except Exception as e:
             print(f"[News Crawler Thread] Error during scheduled crawl: {e}")
+def seed_ipos_data():
+    print("[Database Seeder] Seeding initial IPO tracker data...")
+    ipos_data = [
+        {
+            "company_name": "Swiggy Limited",
+            "symbol": "SWIGGY",
+            "issue_start_date": "2026-11-06",
+            "issue_end_date": "2026-11-08",
+            "price_range": "₹371 - ₹390",
+            "issue_size": "₹11,327 Cr",
+            "lot_size": 38,
+            "status": "Active",
+            "retail_x": 1.48,
+            "hni_x": 2.24,
+            "qib_x": 6.02,
+            "total_x": 3.59
+        },
+        {
+            "company_name": "Acme Solar Holdings Limited",
+            "symbol": "ACMESOLAR",
+            "issue_start_date": "2026-11-06",
+            "issue_end_date": "2026-11-08",
+            "price_range": "₹275 - ₹289",
+            "issue_size": "₹2,900 Cr",
+            "lot_size": 51,
+            "status": "Active",
+            "retail_x": 3.10,
+            "hni_x": 0.97,
+            "qib_x": 3.54,
+            "total_x": 2.75
+        },
+        {
+            "company_name": "Niva Bupa Health Insurance Limited",
+            "symbol": "NIVABUPA",
+            "issue_start_date": "2026-11-07",
+            "issue_end_date": "2026-11-11",
+            "price_range": "₹70 - ₹74",
+            "issue_size": "₹2,200 Cr",
+            "lot_size": 200,
+            "status": "Active",
+            "retail_x": 0.85,
+            "hni_x": 0.22,
+            "qib_x": 1.15,
+            "total_x": 0.78
+        },
+        {
+            "company_name": "Sagility India Limited",
+            "symbol": "SAGILITY",
+            "issue_start_date": "2026-11-05",
+            "issue_end_date": "2026-11-07",
+            "price_range": "₹28 - ₹30",
+            "issue_size": "₹2,106 Cr",
+            "lot_size": 500,
+            "status": "Closed",
+            "retail_x": 11.20,
+            "hni_x": 19.34,
+            "qib_x": 3.52,
+            "total_x": 9.07
+        },
+        {
+            "company_name": "NTPC Green Energy Limited",
+            "symbol": "NTPCGREEN",
+            "issue_start_date": "2026-11-19",
+            "issue_end_date": "2026-11-22",
+            "price_range": "₹102 - ₹108",
+            "issue_size": "₹10,000 Cr",
+            "lot_size": 138,
+            "status": "Upcoming",
+            "retail_x": 0.0,
+            "hni_x": 0.0,
+            "qib_x": 0.0,
+            "total_x": 0.0
+        },
+        {
+            "company_name": "Zinka Logistics Solutions (BlackBuck)",
+            "symbol": "ZINKA",
+            "issue_start_date": "2026-11-13",
+            "issue_end_date": "2026-11-18",
+            "price_range": "₹259 - ₹273",
+            "issue_size": "₹1,114 Cr",
+            "lot_size": 54,
+            "status": "Upcoming",
+            "retail_x": 0.0,
+            "hni_x": 0.0,
+            "qib_x": 0.0,
+            "total_x": 0.0
+        }
+    ]
+    try:
+        conn = database.get_db_connection()
+        cur = conn.cursor()
+        for ipo in ipos_data:
+            cur.execute('''
+                INSERT INTO ipos (
+                    company_name, symbol, issue_start_date, issue_end_date, 
+                    price_range, issue_size, lot_size, status, 
+                    retail_x, hni_x, qib_x, total_x, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+                ON CONFLICT(symbol) DO UPDATE SET
+                    status=excluded.status,
+                    retail_x=excluded.retail_x,
+                    hni_x=excluded.hni_x,
+                    qib_x=excluded.qib_x,
+                    total_x=excluded.total_x,
+                    updated_at=excluded.updated_at
+            ''', (
+                ipo["company_name"], ipo["symbol"], ipo["issue_start_date"], ipo["issue_end_date"],
+                ipo["price_range"], ipo["issue_size"], ipo["lot_size"], ipo["status"],
+                ipo["retail_x"], ipo["hni_x"], ipo["qib_x"], ipo["total_x"]
+            ))
+        conn.commit()
+        conn.close()
+        print("[Database Seeder] IPO tracker data seeded successfully.")
+    except Exception as e:
+        print(f"[Database Seeder] Error writing seed IPOs: {e}")
 
 def background_seeding_task():
     print("[Database Seeder] Checking database status...")
+    
+    # Check and seed IPOs
+    try:
+        conn = database.get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM ipos")
+        ipo_count = cur.fetchone()[0]
+        conn.close()
+        if ipo_count == 0:
+            seed_ipos_data()
+        else:
+            print(f"[Database Seeder] IPO table contains {ipo_count} records. Skipping IPO seeder.")
+    except Exception as e:
+        print(f"[Database Seeder] Error checking IPO table: {e}")
+
     try:
         conn = database.get_db_connection()
         cur = conn.cursor()

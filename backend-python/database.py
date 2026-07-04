@@ -102,6 +102,26 @@ def init_db():
     except sqlite3.OperationalError:
         pass # Column already exists
         
+    # Create ipos table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ipos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_name TEXT NOT NULL,
+            symbol TEXT UNIQUE NOT NULL,
+            issue_start_date TEXT,
+            issue_end_date TEXT,
+            price_range TEXT,
+            issue_size TEXT,
+            lot_size INTEGER,
+            status TEXT,
+            retail_x REAL DEFAULT 0.0,
+            hni_x REAL DEFAULT 0.0,
+            qib_x REAL DEFAULT 0.0,
+            total_x REAL DEFAULT 0.0,
+            updated_at TEXT
+        )
+    ''')
+        
     conn.commit()
     conn.close()
 

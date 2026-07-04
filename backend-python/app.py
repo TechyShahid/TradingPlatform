@@ -572,6 +572,7 @@ def get_news():
         source = request.args.get('source')
         ticker = request.args.get('ticker')
         search = request.args.get('search')
+        region = request.args.get('region')
         limit = request.args.get('limit', 100, type=int)
         
         conn = database.get_db_connection()
@@ -581,6 +582,9 @@ def get_news():
         query = "SELECT * FROM stock_news WHERE 1=1"
         params = []
         
+        if region and region != 'All':
+            query += " AND region = ?"
+            params.append(region)
         if sentiment:
             query += " AND sentiment = ?"
             params.append(sentiment)
@@ -602,9 +606,17 @@ def get_news():
         cur.execute(query, params)
         rows = cur.fetchall()
         
-        # Calculate statistics
-        cur.execute("SELECT sentiment, COUNT(*) as count FROM stock_news GROUP BY sentiment")
+        # Calculate statistics respecting region
+        stats_query = "SELECT sentiment, COUNT(*) as count FROM stock_news WHERE 1=1"
+        stats_params = []
+        if region and region != 'All':
+            stats_query += " AND region = ?"
+            stats_params.append(region)
+            
+        stats_query += " GROUP BY sentiment"
+        cur.execute(stats_query, stats_params)
         stats_rows = cur.fetchall()
+        
         stats = {row['sentiment']: row['count'] for row in stats_rows}
         for s in ['Positive', 'Negative', 'Neutral']:
             if s not in stats:

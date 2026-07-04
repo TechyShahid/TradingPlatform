@@ -643,6 +643,7 @@
             initialized: false,
             selectedTicker: '',
             searchTimeout: null,
+            activeRegion: 'India',
 
             init() {
                 if (this.initialized) return;
@@ -656,6 +657,30 @@
                 this.searchTimeout = setTimeout(() => {
                     this.fetchNews();
                 }, 300);
+            },
+
+            switchRegion(regionName) {
+                this.activeRegion = regionName;
+                
+                const tabs = ['india', 'intl', 'all'];
+                const mapping = {
+                    'India': 'india',
+                    'International': 'intl',
+                    'All': 'all'
+                };
+                
+                tabs.forEach(t => {
+                    const btn = document.getElementById(`news-region-${t}`);
+                    if (btn) {
+                        if (t === mapping[regionName]) {
+                            btn.classList.add('active');
+                        } else {
+                            btn.classList.remove('active');
+                        }
+                    }
+                });
+                
+                this.fetchNews();
             },
 
             async fetchNews() {
@@ -693,6 +718,7 @@
                     if (sourceVal) params.append("source", sourceVal);
                     if (sentimentVal) params.append("sentiment", sentimentVal);
                     if (tickerVal) params.append("ticker", tickerVal.trim());
+                    if (this.activeRegion) params.append("region", this.activeRegion);
                     params.append("limit", 150);
 
                     const response = await fetch(`/api/news?${params.toString()}`);

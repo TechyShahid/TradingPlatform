@@ -197,6 +197,9 @@ def crawl_all_news():
         xml_data = fetch_feed(url)
         articles = parse_feed_xml(xml_data, source_name)
         
+        # Determine region based on source
+        region = 'India' if source_name in ['Economic Times', 'Moneycontrol'] else 'International'
+        
         source_new_count = 0
         for art in articles:
             total_scraped += 1
@@ -206,8 +209,8 @@ def crawl_all_news():
             try:
                 cursor.execute('''
                     INSERT INTO stock_news 
-                    (title, source, url, summary, published_at, sentiment, ticker)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (title, source, url, summary, published_at, sentiment, ticker, region)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     art['title'],
                     art['source'],
@@ -215,7 +218,8 @@ def crawl_all_news():
                     art['summary'],
                     art['published_at'],
                     sentiment,
-                    matched_ticker
+                    matched_ticker,
+                    region
                 ))
                 source_new_count += 1
                 total_new += 1

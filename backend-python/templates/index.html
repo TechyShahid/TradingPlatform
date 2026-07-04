@@ -398,6 +398,13 @@
 
                 <!-- News Articles Feed -->
                 <main class="news-panel card" style="min-height: 40vh; margin-bottom: 0;">
+                    <!-- Region Filter Tabs -->
+                    <div style="display: flex; gap: 0.35rem; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.5rem; flex-wrap: wrap;">
+                        <button class="btn-page active" id="news-region-india" onclick="NewsController.switchRegion('India')" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">🇮🇳 India News</button>
+                        <button class="btn-page" id="news-region-intl" onclick="NewsController.switchRegion('International')" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">🌐 International News</button>
+                        <button class="btn-page" id="news-region-all" onclick="NewsController.switchRegion('All')" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">🌍 All News</button>
+                    </div>
+
                     <div id="loading-state" class="loading-container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1rem; gap: 0.5rem; color: var(--text-secondary); font-size: 0.7rem;">
                         <div class="spinner"></div>
                         <p>Loading latest financial news feed...</p>

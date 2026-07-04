@@ -81,9 +81,16 @@ def init_db():
             summary TEXT,
             published_at TEXT,
             sentiment TEXT,
-            ticker TEXT
+            ticker TEXT,
+            region TEXT DEFAULT 'India'
         )
     ''')
+    
+    # Run migration to add region column to stock_news if it existed without it
+    try:
+        cursor.execute("ALTER TABLE stock_news ADD COLUMN region TEXT DEFAULT 'India'")
+    except sqlite3.OperationalError:
+        pass # Column already exists
     
     # Create users table
     cursor.execute('''

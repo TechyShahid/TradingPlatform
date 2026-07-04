@@ -1,6 +1,6 @@
         // --- 1. Router & Tab Switching System ---
         const Router = {
-            routes: ['volume', 'deals', 'growth', 'news', 'ipo'],
+            routes: ['volume', 'deals', 'growth', 'news', 'ipo', 'funds'],
             init() {
                 // Add admin route if user is entitled
                 if (window.ProTradeConfig && window.ProTradeConfig.user && window.ProTradeConfig.user.entitlements.includes('stock_admin')) {
@@ -74,6 +74,9 @@
                 } else if (viewName === 'ipo') {
                     subtitle.innerText = 'Upcoming Public Offerings & Live Subscription Status';
                     IpoController.init();
+                } else if (viewName === 'funds') {
+                    subtitle.innerText = 'Explore and rank top-performing Indian Mutual Funds';
+                    FundsController.init();
                 }
             }
         };
@@ -1185,7 +1188,560 @@
             }
         };
 
-        // --- 7. Initialize Router on Load ---
+        // --- 7. Mutual Funds Controllers System ---
+        const FundsController = {
+            activeSubView: 'explorer',
+            initialized: false,
+            
+            init() {
+                if (this.initialized) return;
+                this.initialized = true;
+                ExplorerController.init();
+            },
+            
+            switchSubView(subViewName) {
+                this.activeSubView = subViewName;
+                
+                const subtabs = ['explorer', 'details', 'compare', 'calculator'];
+                subtabs.forEach(tab => {
+                    const btn = document.getElementById(`fund-subtab-${tab}`);
+                    const panel = document.getElementById(`fund-subview-${tab}`);
+                    
+                    if (btn) {
+                        if (tab === subViewName) {
+                            btn.classList.add('active');
+                        } else {
+                            btn.classList.remove('active');
+                        }
+                    }
+                    
+                    if (panel) {
+                        if (tab === subViewName) {
+                            panel.style.display = 'block';
+                        } else {
+                            panel.style.display = 'none';
+                        }
+                    }
+                });
+                
+                if (subViewName === 'compare') {
+                    CompareController.init();
+                } else if (subViewName === 'calculator') {
+                    CalculatorController.init();
+                }
+            }
+        };
+
+        const ExplorerController = {
+            initialized: false,
+            fundsData: [],
+
+            init() {
+                if (this.initialized) return;
+                this.initialized = true;
+                this.fetchFunds();
+            },
+
+            async fetchFunds() {
+                const tbody = document.getElementById("funds-table-body");
+                tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading funds list...</td></tr>';
+                
+                const cat = document.getElementById("category-filter").value;
+                const search = document.getElementById("fund-search").value;
+                
+                try {
+                    const params = new URLSearchParams();
+                    if (cat !== 'All') params.append('category', cat);
+                    if (search) params.append('search', search);
+                    
+                    const response = await fetch(`/api/funds?${params.toString()}`);
+                    if (!response.ok) throw new Error("Failed to fetch funds list");
+                    const data = await response.json();
+                    this.fundsData = data;
+                    this.renderTable(data);
+                } catch (err) {
+                    console.error("Error fetching funds:", err);
+                    tbody.innerHTML = '<tr><td colspan="10" class="loading" style="color:var(--danger)">Failed to load mutual funds.</td></tr>';
+                }
+            },
+
+            renderTable(funds) {
+                const tbody = document.getElementById("funds-table-body");
+                tbody.innerHTML = "";
+                
+                if (funds.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No mutual funds found.</td></tr>';
+                    return;
+                }
+                
+                funds.forEach(f => {
+                    const tr = document.createElement("tr");
+                    tr.onclick = () => {
+                        DetailsController.loadFund(f.amfi_code);
+                    };
+                    
+                    tr.innerHTML = `
+                        <td style="font-weight:600; color:#fff;">${f.amfi_code}</td>
+                        <td style="color:#fff; font-weight:500;">${f.scheme_name}</td>
+                        <td>${f.category}</td>
+                        <td>${f.sub_category}</td>
+                        <td>₹${f.aum.toLocaleString('en-IN')} Cr</td>
+                        <td>${f.expense_ratio}%</td>
+                        <td class="font-accent">${'★'.repeat(f.star_rating)}${'☆'.repeat(5 - f.star_rating)}</td>
+                        <td class="font-accent font-bold">${f.stats ? f.stats.return_1y : '0.0'}%</td>
+                        <td class="font-accent font-bold">${f.stats ? f.stats.return_3y : '0.0'}%</td>
+                        <td class="font-accent font-bold">${f.stats ? f.stats.return_5y : '0.0'}%</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            },
+
+            search() {
+                this.fetchFunds();
+            },
+
+            filterCategory() {
+                this.fetchFunds();
+            }
+        };
+
+        const DetailsController = {
+            currentAmfi: '',
+            fundInfo: null,
+            chart: null,
+            chartMode: 'nav',
+
+            async loadFund(amfiCode) {
+                this.currentAmfi = amfiCode;
+                
+                const tab = document.getElementById("fund-subtab-details");
+                if (tab) tab.style.display = "inline-block";
+                
+                FundsController.switchSubView('details');
+                
+                const loader = document.getElementById("detail-scheme-name");
+                loader.innerText = "Loading details...";
+                
+                try {
+                    const response = await fetch(`/api/funds/${amfiCode}`);
+                    if (!response.ok) throw new Error("Failed to load details");
+                    const data = await response.json();
+                    this.fundInfo = data;
+                    
+                    document.getElementById("detail-scheme-name").innerText = data.scheme_name;
+                    document.getElementById("detail-category").innerText = `${data.category} - ${data.sub_category}`;
+                    document.getElementById("detail-aum").innerText = `₹${data.aum.toLocaleString('en-IN')} Cr`;
+                    document.getElementById("detail-expense").innerText = `${data.expense_ratio}%`;
+                    document.getElementById("detail-manager").innerText = data.fund_manager;
+                    document.getElementById("detail-risk").innerText = data.risk_rating;
+                    
+                    const rEl = document.getElementById("detail-risk");
+                    rEl.className = "meta-val";
+                    if (data.risk_rating.includes("Very High")) rEl.classList.add("risk-very-high");
+                    else if (data.risk_rating.includes("High")) rEl.classList.add("risk-high");
+                    else rEl.classList.add("risk-moderate");
+                    
+                    document.getElementById("detail-stars").innerText = '★'.repeat(data.star_rating) + '☆'.repeat(5 - data.star_rating);
+                    
+                    document.getElementById("detail-volatility").innerText = `${data.stats.volatility}%`;
+                    document.getElementById("detail-sharpe").innerText = data.stats.sharpe_ratio;
+                    document.getElementById("detail-beta").innerText = data.stats.beta;
+                    document.getElementById("detail-alpha").innerText = `${data.stats.alpha >= 0 ? '+' : ''}${data.stats.alpha}%`;
+                    
+                    this.renderHoldings(data.portfolio);
+                    
+                    this.chartMode = 'nav';
+                    document.getElementById("chart-tab-nav").classList.add("active");
+                    document.getElementById("chart-tab-predict").classList.remove("active");
+                    this.renderChart();
+                    
+                    this.loadPredictionMetrics();
+                    
+                } catch (err) {
+                    console.error("Error loading fund details:", err);
+                    document.getElementById("detail-scheme-name").innerText = "Error loading details.";
+                }
+            },
+
+            renderHoldings(holdings) {
+                const tbody = document.getElementById("holdings-table-body");
+                tbody.innerHTML = "";
+                
+                holdings.forEach(h => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td style="color:#fff; font-weight:500;">${h.asset_name}</td>
+                        <td>${h.sector}</td>
+                        <td class="font-accent font-bold">${h.allocation_pct}%</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            },
+
+            async loadPredictionMetrics() {
+                try {
+                    const response = await fetch(`/api/funds/predict?amfi_code=${this.currentAmfi}&years=5`);
+                    if (!response.ok) throw new Error("Prediction API error");
+                    const data = await response.json();
+                    
+                    const preds = data.predictions;
+                    const p1y = preds[Math.min(50, preds.length - 1)].expected;
+                    const p3y = preds[Math.min(150, preds.length - 1)].expected;
+                    const p5y = preds[preds.length - 1].expected;
+                    
+                    document.getElementById("pred-current-val").innerText = `₹${data.last_price.toFixed(2)}`;
+                    document.getElementById("pred-1y-val").innerText = `₹${p1y.toFixed(2)}`;
+                    document.getElementById("pred-3y-val").innerText = `₹${p3y.toFixed(2)}`;
+                    document.getElementById("pred-5y-val").innerText = `₹${p5y.toFixed(2)}`;
+                    
+                } catch (err) {
+                    console.error("Error loading predictions summary:", err);
+                }
+            },
+
+            async renderChart() {
+                const ctx = document.getElementById("detailsChart").getContext("2d");
+                if (this.chart) this.chart.destroy();
+
+                if (this.chartMode === 'nav') {
+                    const labels = this.fundInfo.nav_history.map(item => item.date);
+                    const prices = this.fundInfo.nav_history.map(item => item.price);
+
+                    this.chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Net Asset Value (NAV)',
+                                data: prices,
+                                borderColor: '#00d09c',
+                                borderWidth: 2,
+                                backgroundColor: 'rgba(0, 208, 156, 0.05)',
+                                fill: true,
+                                tension: 0.1,
+                                pointRadius: 0
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                x: {
+                                    grid: { color: 'rgba(255, 255, 255, 0.02)' },
+                                    ticks: { color: '#94a3b8', font: { size: 9 } }
+                                },
+                                y: {
+                                    grid: { color: 'rgba(255, 255, 255, 0.02)' },
+                                    ticks: { color: '#94a3b8', font: { size: 9 } }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    try {
+                        const response = await fetch(`/api/funds/predict?amfi_code=${this.currentAmfi}&years=5`);
+                        if (!response.ok) throw new Error("Failed to load predictions chart data");
+                        const data = await response.json();
+                        
+                        const labels = data.predictions.map(item => item.date);
+                        const expected = data.predictions.map(item => item.expected);
+                        const optimistic = data.predictions.map(item => item.optimistic);
+                        const pessimistic = data.predictions.map(item => item.pessimistic);
+                        
+                        this.chart = new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: labels,
+                                datasets: [
+                                    {
+                                        label: 'Optimistic Projection',
+                                        data: optimistic,
+                                        borderColor: 'rgba(59, 130, 246, 0.4)',
+                                        borderDash: [5, 5],
+                                        borderWidth: 1,
+                                        fill: false,
+                                        pointRadius: 0
+                                    },
+                                    {
+                                        label: 'Expected Trend',
+                                        data: expected,
+                                        borderColor: '#00d09c',
+                                        borderWidth: 2,
+                                        fill: false,
+                                        pointRadius: 0
+                                    },
+                                    {
+                                        label: 'Pessimistic Projection',
+                                        data: pessimistic,
+                                        borderColor: 'rgba(239, 68, 68, 0.4)',
+                                        borderDash: [5, 5],
+                                        borderWidth: 1,
+                                        fill: false,
+                                        pointRadius: 0
+                                    }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        display: true,
+                                        labels: { color: '#e2e8f0', font: { size: 9 } }
+                                    }
+                                },
+                                scales: {
+                                    x: {
+                                        grid: { color: 'rgba(255, 255, 255, 0.02)' },
+                                        ticks: { color: '#94a3b8', font: { size: 9 } }
+                                    },
+                                    y: {
+                                        grid: { color: 'rgba(255, 255, 255, 0.02)' },
+                                        ticks: { color: '#94a3b8', font: { size: 9 } }
+                                    }
+                                }
+                            }
+                        });
+                    } catch (err) {
+                        console.error("Error drawing prediction chart:", err);
+                    }
+                }
+            },
+
+            switchChartMode(mode) {
+                this.chartMode = mode;
+                
+                document.getElementById("chart-tab-nav").classList.remove("active");
+                document.getElementById("chart-tab-predict").classList.remove("active");
+                
+                if (mode === 'nav') {
+                    document.getElementById("chart-tab-nav").classList.add("active");
+                } else {
+                    document.getElementById("chart-tab-predict").classList.add("active");
+                }
+                
+                this.renderChart();
+            }
+        };
+
+        const CompareController = {
+            initialized: false,
+            fundsList: [],
+
+            async init() {
+                if (this.initialized) return;
+                this.initialized = true;
+                
+                try {
+                    const response = await fetch("/api/funds");
+                    if (!response.ok) throw new Error("Failed to load options");
+                    const data = await response.json();
+                    this.fundsList = data;
+                    
+                    this.populateSelects();
+                } catch (err) {
+                    console.error("Error initializing compare select options:", err);
+                }
+            },
+
+            populateSelects() {
+                const s1 = document.getElementById("compare-select-1");
+                const s2 = document.getElementById("compare-select-2");
+                
+                s1.innerHTML = '<option value="">Choose First Scheme...</option>';
+                s2.innerHTML = '<option value="">Choose Second Scheme...</option>';
+                
+                this.fundsList.forEach(f => {
+                    const opt1 = `<option value="${f.amfi_code}">${f.scheme_name}</option>`;
+                    const opt2 = `<option value="${f.amfi_code}">${f.scheme_name}</option>`;
+                    s1.innerHTML += opt1;
+                    s2.innerHTML += opt2;
+                });
+            },
+
+            async compare() {
+                const c1 = document.getElementById("compare-select-1").value;
+                const c2 = document.getElementById("compare-select-2").value;
+                
+                const resultDiv = document.getElementById("compare-result");
+                
+                if (!c1 || !c2) {
+                    resultDiv.style.display = "none";
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`/api/funds/compare?codes=${c1}&codes=${c2}`);
+                    if (!response.ok) throw new Error("Compare API error");
+                    const data = await response.json();
+                    
+                    resultDiv.style.display = "block";
+                    
+                    const overlapVal = document.getElementById("compare-overlap-val");
+                    overlapVal.innerText = `${data.overlap_pct}%`;
+                    
+                    const overlapRating = document.getElementById("compare-overlap-rating");
+                    if (data.overlap_pct > 50) {
+                        overlapRating.innerText = "High Concentration";
+                        overlapRating.style.color = "var(--danger)";
+                    } else if (data.overlap_pct > 25) {
+                        overlapRating.innerText = "Moderate Overlap";
+                        overlapRating.style.color = "var(--warning)";
+                    } else {
+                        overlapRating.innerText = "Well Diversified";
+                        overlapRating.style.color = "var(--accent)";
+                    }
+                    
+                    this.renderCompareColumn(data.schemes[0], 1);
+                    this.renderCompareColumn(data.schemes[1], 2);
+                    
+                } catch (err) {
+                    console.error("Error executing comparison:", err);
+                    alert("Error running comparison. Please try again.");
+                }
+            },
+
+            renderCompareColumn(scheme, colIndex) {
+                const col = document.getElementById(`compare-fund-col-${colIndex}`);
+                col.innerHTML = `
+                    <h3 style="font-size:0.78rem; font-weight:600; color:#fff; line-height:1.3; border-bottom:1px solid var(--border); padding-bottom:0.4rem;">${scheme.scheme_name}</h3>
+                    <div class="metadata-list">
+                        <div class="meta-item">
+                            <span class="meta-label">Category</span>
+                            <span>${scheme.category} (${scheme.sub_category})</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Expense Ratio</span>
+                            <span class="font-bold">${scheme.expense_ratio}%</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">AUM</span>
+                            <span class="font-bold">₹${scheme.aum.toLocaleString('en-IN')} Cr</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">1-Year Return</span>
+                            <span class="font-accent font-bold">${scheme.stats.return_1y}%</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">3-Year CAGR</span>
+                            <span class="font-accent font-bold">${scheme.stats.return_3y}%</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">5-Year CAGR</span>
+                            <span class="font-accent font-bold">${scheme.stats.return_5y}%</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Volatility</span>
+                            <span>${scheme.stats.volatility}%</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Sharpe Ratio</span>
+                            <span class="font-bold">${scheme.stats.sharpe_ratio}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Beta</span>
+                            <span>${scheme.stats.beta}</span>
+                        </div>
+                    </div>
+                `;
+            }
+        };
+
+        const CalculatorController = {
+            initialized: false,
+            calcType: 'sip',
+            chart: null,
+
+            init() {
+                if (this.initialized) return;
+                this.initialized = true;
+                this.calculate();
+            },
+
+            switchType(type) {
+                this.calcType = type;
+                
+                document.getElementById("calc-tab-sip").classList.remove("active");
+                document.getElementById("calc-tab-lumpsum").classList.remove("active");
+                
+                const label = document.getElementById("calc-amount-label");
+                
+                if (type === 'sip') {
+                    document.getElementById("calc-tab-sip").classList.add("active");
+                    label.innerText = "Monthly Investment";
+                } else {
+                    document.getElementById("calc-tab-lumpsum").classList.add("active");
+                    label.innerText = "Total Lumpsum Investment";
+                }
+                
+                this.calculate();
+            },
+
+            calculate() {
+                const amount = parseFloat(document.getElementById("calc-amount").value);
+                const rate = parseFloat(document.getElementById("calc-rate").value);
+                const years = parseInt(document.getElementById("calc-years").value);
+                
+                document.getElementById("slider-amount-txt").innerText = `₹${amount.toLocaleString('en-IN')}`;
+                document.getElementById("slider-rate-txt").innerText = `${rate}%`;
+                document.getElementById("slider-years-txt").innerText = `${years} Years`;
+                
+                let principal = 0;
+                let wealth = 0;
+                
+                if (this.calcType === 'sip') {
+                    principal = amount * 12 * years;
+                    const monthlyRate = (rate / 12) / 100;
+                    const months = years * 12;
+                    wealth = amount * ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate) * (1 + monthlyRate);
+                } else {
+                    principal = amount;
+                    wealth = amount * Math.pow(1 + (rate / 100), years);
+                }
+                
+                const estReturns = wealth - principal;
+                
+                document.getElementById("calc-total-invested").innerText = `₹${Math.round(principal).toLocaleString('en-IN')}`;
+                document.getElementById("calc-total-returns").innerText = `₹${Math.round(estReturns).toLocaleString('en-IN')}`;
+                document.getElementById("calc-total-wealth").innerText = `₹${Math.round(wealth).toLocaleString('en-IN')}`;
+                
+                this.renderChart(principal, estReturns);
+            },
+
+            renderChart(principal, returns) {
+                const ctx = document.getElementById("calculatorChart").getContext("2d");
+                if (this.chart) this.chart.destroy();
+                
+                this.chart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Invested Principal', 'Estimated Returns'],
+                        datasets: [{
+                            data: [principal, returns],
+                            backgroundColor: ['#171c26', '#00d09c'],
+                            borderColor: 'rgba(255, 255, 255, 0.05)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: '#94a3b8', font: { size: 9 } }
+                            }
+                        },
+                        cutout: '65%'
+                    }
+                });
+            }
+        };
+
+        // --- 8. Initialize Router on Load ---
         document.addEventListener("DOMContentLoaded", () => {
             Router.init();
         });

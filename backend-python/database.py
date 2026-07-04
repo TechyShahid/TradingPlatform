@@ -121,6 +121,46 @@ def init_db():
             updated_at TEXT
         )
     ''')
+
+    # Create mutual funds tables
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS funds (
+            amfi_code TEXT PRIMARY KEY,
+            scheme_name TEXT NOT NULL,
+            category TEXT NOT NULL,       -- 'Equity', 'Debt', 'Hybrid'
+            sub_category TEXT NOT NULL,   -- 'Large Cap', 'Mid Cap', 'Small Cap', 'ELSS', 'Liquid'
+            risk_rating TEXT NOT NULL,    -- 'Low', 'Moderate', 'High', 'Very High'
+            expense_ratio REAL,           -- e.g. 0.75 (%)
+            exit_load TEXT,               -- exit load description
+            fund_manager TEXT,            -- fund manager name
+            aum REAL,                     -- AUM in Crores (INR)
+            star_rating INTEGER DEFAULT 3, -- 1-5 stars
+            launch_date TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS fund_nav_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            amfi_code TEXT NOT NULL,
+            nav_date TEXT NOT NULL,
+            nav_price REAL NOT NULL,
+            FOREIGN KEY (amfi_code) REFERENCES funds(amfi_code),
+            UNIQUE(amfi_code, nav_date)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS fund_portfolio (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            amfi_code TEXT NOT NULL,
+            asset_name TEXT NOT NULL,     -- Stock name / bond name
+            sector TEXT,                  -- Stock sector (e.g. Finance, Technology)
+            allocation_pct REAL NOT NULL, -- Weight of asset in portfolio (%)
+            FOREIGN KEY (amfi_code) REFERENCES funds(amfi_code),
+            UNIQUE(amfi_code, asset_name)
+        )
+    ''')
         
     conn.commit()
     conn.close()

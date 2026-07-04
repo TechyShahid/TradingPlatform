@@ -7,6 +7,7 @@
     <title>ProTrade Platform Terminal</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
@@ -42,6 +43,7 @@
                 <button class="tab-btn" data-view="growth">🚀 Growth Engine</button>
                 <button class="tab-btn" data-view="news">📰 Live News</button>
                 <button class="tab-btn" data-view="ipo">📅 IPO Tracker</button>
+                <button class="tab-btn" data-view="funds">💼 Mutual Funds</button>
                 {% if session.get('user') and 'stock_admin' in (session.get('user').get('entitlements') or '') %}
                 <button class="tab-btn" data-view="admin">🛡️ Admin Panel</button>
                 {% endif %}
@@ -492,6 +494,277 @@
         <div id="ipo-content" style="display: none;">
             <div id="ipo-grid" class="ipo-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
                 <!-- Injected dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Mutual Funds View -->
+    <div id="view-funds" class="view-panel">
+        <!-- Sub-navigation tabs within Mutual Funds panel -->
+        <div style="display: flex; gap: 0.35rem; margin-bottom: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.5rem; flex-wrap: wrap;">
+            <button class="btn-page active" id="fund-subtab-explorer" onclick="FundsController.switchSubView('explorer')" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">📊 Funds Explorer</button>
+            <button class="btn-page" id="fund-subtab-details" onclick="FundsController.switchSubView('details')" style="display: none; padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">🔍 Scheme Details</button>
+            <button class="btn-page" id="fund-subtab-compare" onclick="FundsController.switchSubView('compare')" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">⚖️ Compare Schemes</button>
+            <button class="btn-page" id="fund-subtab-calculator" onclick="FundsController.switchSubView('calculator')" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">🧮 SIP Calculator</button>
+        </div>
+
+        <!-- Sub-View 1: Explorer -->
+        <div id="fund-subview-explorer" class="fund-subview-panel active">
+            <div class="card toolbar-card" style="padding: 0.5rem 0.75rem; margin-bottom: 0.5rem;">
+                <div class="filters-row" style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: center;">
+                    <div class="search-box" style="flex: 1;">
+                        <input type="text" id="fund-search" placeholder="Search mutual funds by name or AMFI..." onkeyup="ExplorerController.search()" style="width: 100%; padding: 0.35rem 0.6rem; font-size: 0.68rem;">
+                    </div>
+                    <div class="filter-dropdowns">
+                        <select id="category-filter" onchange="ExplorerController.filterCategory()" style="padding: 0.35rem 0.6rem; font-size: 0.68rem; min-width: 140px;">
+                            <option value="All">All Categories</option>
+                            <option value="Equity">Equity Funds</option>
+                            <option value="Debt">Debt Funds</option>
+                            <option value="Hybrid">Hybrid Funds</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card table-card" style="padding: 0;">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>AMFI Code</th>
+                                <th>Scheme Name</th>
+                                <th>Category</th>
+                                <th>Sub-Category</th>
+                                <th>AUM (Cr)</th>
+                                <th>Expense</th>
+                                <th>Rating</th>
+                                <th>1Y Return</th>
+                                <th>3Y CAGR</th>
+                                <th>5Y CAGR</th>
+                            </tr>
+                        </thead>
+                        <tbody id="funds-table-body">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub-View 2: Details -->
+        <div id="fund-subview-details" class="fund-subview-panel" style="display: none;">
+            <div class="details-layout">
+                <!-- Left Sidebar: Fund Metadata & Risk Metrics -->
+                <aside class="sidebar card">
+                    <h2 id="detail-scheme-name" class="scheme-detail-title">Scheme Name</h2>
+                    <div class="metadata-list">
+                        <div class="meta-item">
+                            <span class="meta-label">Category</span>
+                            <span id="detail-category" class="meta-val">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">AUM (Assets)</span>
+                            <span id="detail-aum" class="meta-val">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Expense Ratio</span>
+                            <span id="detail-expense" class="meta-val">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Fund Manager</span>
+                            <span id="detail-manager" class="meta-val">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Risk Rating</span>
+                            <span id="detail-risk" class="meta-val">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Star Rating</span>
+                            <span id="detail-stars" class="meta-val font-accent">-</span>
+                        </div>
+                    </div>
+
+                    <h3 class="subsection-title">Risk & Volatility Analysis</h3>
+                    <div class="ratios-grid">
+                        <div class="ratio-card">
+                            <span class="ratio-label">Volatility (Stdev)</span>
+                            <span id="detail-volatility" class="ratio-val">-</span>
+                        </div>
+                        <div class="ratio-card">
+                            <span class="ratio-label">Sharpe Ratio</span>
+                            <span id="detail-sharpe" class="ratio-val">-</span>
+                        </div>
+                        <div class="ratio-card">
+                            <span class="ratio-label">Beta vs Index</span>
+                            <span id="detail-beta" class="ratio-val">-</span>
+                        </div>
+                        <div class="ratio-card">
+                            <span class="ratio-label">Alpha (Excess)</span>
+                            <span id="detail-alpha" class="ratio-val">-</span>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main Section: NAV Charts, Predictions & Portfolio Allocations -->
+                <main class="main-content">
+                    <div class="card chart-card">
+                        <div class="chart-header">
+                            <div class="chart-tabs">
+                                <button class="chart-tab active" id="chart-tab-nav" onclick="DetailsController.switchChartMode('nav')">Historical NAV Trend</button>
+                                <button class="chart-tab" id="chart-tab-predict" onclick="DetailsController.switchChartMode('predict')">🔮 5-Year NAV Projections</button>
+                            </div>
+                        </div>
+                        <div class="chart-wrapper">
+                            <canvas id="detailsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="info-columns">
+                        <div class="card details-sub-card">
+                            <h3 class="card-title">Top Portfolio Holdings</h3>
+                            <div class="table-container small-table">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Asset Name</th>
+                                            <th>Sector</th>
+                                            <th>Allocation</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="holdings-table-body">
+                                        <!-- Injected dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="card details-sub-card">
+                            <h3 class="card-title">🔮 Machine Learning Projections</h3>
+                            <p style="font-size: 0.65rem; color: var(--text-secondary); margin-bottom: 0.8rem; line-height: 1.4;">
+                                Our predictive engine models historical daily price trends to project expected future Net Asset Values (NAV) with standard error variance bands.
+                            </p>
+                            <div class="predictions-summary">
+                                <div class="pred-row">
+                                    <span>Current Value:</span>
+                                    <span id="pred-current-val" class="font-bold">-</span>
+                                </div>
+                                <div class="pred-row">
+                                    <span>1-Year Projected Expected NAV:</span>
+                                    <span id="pred-1y-val" class="font-bold font-accent">-</span>
+                                </div>
+                                <div class="pred-row">
+                                    <span>3-Year Projected Expected NAV:</span>
+                                    <span id="pred-3y-val" class="font-bold font-accent">-</span>
+                                </div>
+                                <div class="pred-row">
+                                    <span>5-Year Projected Expected NAV:</span>
+                                    <span id="pred-5y-val" class="font-bold font-accent">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        <!-- Sub-View 3: Compare -->
+        <div id="fund-subview-compare" class="fund-subview-panel" style="display: none;">
+            <div class="card toolbar-card" style="padding: 0.6rem 0.8rem; margin-bottom: 0.5rem;">
+                <h2 style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.2rem; color: #fff;">Compare Mutual Funds Side-by-Side</h2>
+                <p style="font-size: 0.62rem; color: var(--text-secondary); margin-bottom: 0.6rem;">Select two funds from the lists below to analyze return histories and overlapping allocations.</p>
+                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <select id="compare-select-1" class="input-select" onchange="CompareController.compare()" style="padding: 0.35rem 0.6rem; font-size: 0.68rem; min-width: 180px;">
+                        <option value="">Choose First Scheme...</option>
+                    </select>
+                    <span style="font-size: 0.7rem; color: var(--text-secondary); font-weight: bold;">VS</span>
+                    <select id="compare-select-2" class="input-select" onchange="CompareController.compare()" style="padding: 0.35rem 0.6rem; font-size: 0.68rem; min-width: 180px;">
+                        <option value="">Choose Second Scheme...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="compare-result" style="display: none;">
+                <div class="card overlap-badge-card" style="display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 1rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(16, 185, 129, 0.05)); margin-bottom: 0.5rem;">
+                    <div>
+                        <h3 style="font-size: 0.8rem; color: #fff; font-weight: 600;">Stock Portfolio Overlap Index</h3>
+                        <p style="font-size: 0.62rem; color: var(--text-secondary);">Calculates the percentage weight of common holdings between both mutual funds.</p>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: end;">
+                        <span id="compare-overlap-val" class="font-accent font-bold" style="font-size: 1.5rem; line-height: 1;">0.0%</span>
+                        <span id="compare-overlap-rating" style="font-size: 0.55rem; color: var(--text-secondary); text-transform: uppercase;">Low Concentration</span>
+                    </div>
+                </div>
+
+                <div class="compare-columns-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                    <div class="card compare-fund-col" id="compare-fund-col-1">
+                        <!-- Injected -->
+                    </div>
+                    <div class="card compare-fund-col" id="compare-fund-col-2">
+                        <!-- Injected -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub-View 4: Calculator -->
+        <div id="fund-subview-calculator" class="fund-subview-panel" style="display: none;">
+            <div class="calculator-layout" style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 0.75rem;">
+                <div class="card calculator-inputs">
+                    <h2 style="font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.6rem;">SIP / Lumpsum Return Calculator</h2>
+                    
+                    <div class="calc-tabs" style="display: flex; gap: 0.4rem; margin-bottom: 0.8rem;">
+                        <button class="btn-page active" id="calc-tab-sip" onclick="CalculatorController.switchType('sip')" style="padding: 0.25rem 0.5rem; font-size: 0.65rem;">Monthly SIP</button>
+                        <button class="btn-page" id="calc-tab-lumpsum" onclick="CalculatorController.switchType('lumpsum')" style="padding: 0.25rem 0.5rem; font-size: 0.65rem;">Lumpsum</button>
+                    </div>
+
+                    <div class="slider-group" style="margin-bottom: 0.75rem;">
+                        <div class="slider-header" style="display: flex; justify-content: space-between; font-size: 0.65rem; margin-bottom: 0.2rem;">
+                            <span id="calc-amount-label">Monthly Investment</span>
+                            <span class="slider-val" id="slider-amount-txt" style="font-weight: 600; color: var(--accent);">₹5,000</span>
+                        </div>
+                        <input type="range" id="calc-amount" min="500" max="100000" step="500" value="5000" oninput="CalculatorController.calculate()" style="width: 100%;">
+                    </div>
+
+                    <div class="slider-group" style="margin-bottom: 0.75rem;">
+                        <div class="slider-header" style="display: flex; justify-content: space-between; font-size: 0.65rem; margin-bottom: 0.2rem;">
+                            <span>Expected Return Rate (p.a.)</span>
+                            <span class="slider-val" id="slider-rate-txt" style="font-weight: 600; color: var(--accent);">12%</span>
+                        </div>
+                        <input type="range" id="calc-rate" min="1" max="30" step="0.5" value="12" oninput="CalculatorController.calculate()" style="width: 100%;">
+                    </div>
+
+                    <div class="slider-group" style="margin-bottom: 0.75rem;">
+                        <div class="slider-header" style="display: flex; justify-content: space-between; font-size: 0.65rem; margin-bottom: 0.2rem;">
+                            <span>Investment Period (Years)</span>
+                            <span class="slider-val" id="slider-years-txt" style="font-weight: 600; color: var(--accent);">10 Years</span>
+                        </div>
+                        <input type="range" id="calc-years" min="1" max="40" step="1" value="10" oninput="CalculatorController.calculate()" style="width: 100%;">
+                    </div>
+                </div>
+
+                <div class="card calculator-results" style="display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <h2 style="font-size: 0.85rem; font-weight: 600; color: #fff; margin-bottom: 0.6rem;">Est. Wealth Projection</h2>
+                        <div class="calc-metrics-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem;">
+                            <div class="metric-box" style="padding: 0.4rem; text-align: center; border: 1px solid var(--border); border-radius: 8px;">
+                                <span class="metric-label" style="font-size: 0.55rem; color: var(--text-secondary); display: block;">Principal</span>
+                                <span id="calc-total-invested" class="metric-val" style="font-size: 0.7rem; font-weight: 600;">₹6,00,000</span>
+                            </div>
+                            <div class="metric-box" style="padding: 0.4rem; text-align: center; border: 1px solid var(--border); border-radius: 8px;">
+                                <span class="metric-label" style="font-size: 0.55rem; color: var(--text-secondary); display: block;">Est. Returns</span>
+                                <span id="calc-total-returns" class="metric-val font-accent" style="font-size: 0.7rem; font-weight: 600; color: var(--accent);">₹5,20,109</span>
+                            </div>
+                            <div class="metric-box" style="padding: 0.4rem; text-align: center; border: 1px solid var(--border); border-radius: 8px;">
+                                <span class="metric-label" style="font-size: 0.55rem; color: var(--text-secondary); display: block;">Future Wealth</span>
+                                <span id="calc-total-wealth" class="metric-val" style="font-size: 0.7rem; font-weight: 600;">₹11,20,109</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="flex: 1; display: flex; align-items: center; justify-content: center; min-height: 120px;">
+                        <canvas id="calculatorChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

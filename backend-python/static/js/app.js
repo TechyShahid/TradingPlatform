@@ -1145,6 +1145,7 @@
                     
                     let subHtml = "";
                     if (ipo.status === 'Active' || ipo.status === 'Closed') {
+                        const totalDemand = parseFloat(ipo.total_x) || 0;
                         subHtml = `
                             <div class="ipo-subscriptions">
                                 <div class="ipo-sub-title">Subscription Demand (Multipliers)</div>
@@ -1153,7 +1154,7 @@
                                 ${this.renderProgressBar("Institutional (QIB)", ipo.qib_x, 50)}
                                 <div style="border-top:1px dashed rgba(255,255,255,0.05); padding-top:0.4rem; display:flex; justify-content:space-between; align-items:center;">
                                     <span style="font-size:0.6rem; color:var(--text-secondary);">Total Demand</span>
-                                    <span class="ratio-tag ${ipo.total_x >= 1.0 ? 'ratio-high' : 'ratio-mid'}" style="font-size:0.65rem;">${ipo.total_x}x</span>
+                                    <span class="ratio-tag ${totalDemand >= 1.0 ? 'ratio-high' : 'ratio-mid'}" style="font-size:0.65rem;">${totalDemand.toFixed(2)}x</span>
                                 </div>
                             </div>
                         `;
@@ -1206,18 +1207,19 @@
             },
 
             renderProgressBar(label, multiplier, maxScale) {
-                const percentage = Math.min(100, Math.max(0, (multiplier / maxScale) * 100));
+                const num = parseFloat(multiplier) || 0;
+                const percentage = Math.min(100, Math.max(0, (num / maxScale) * 100));
                 
                 let fillClass = "fill-low";
-                if (multiplier === 0) fillClass = "fill-empty";
-                else if (multiplier >= 1.0) fillClass = "fill-high";
-                else if (multiplier >= 0.5) fillClass = "fill-mid";
+                if (num === 0) fillClass = "fill-empty";
+                else if (num >= 1.0) fillClass = "fill-high";
+                else if (num >= 0.5) fillClass = "fill-mid";
 
                 return `
                     <div class="sub-bar-container">
                         <div class="sub-bar-header">
                             <span style="color:var(--text-secondary); font-size:0.6rem;">${label}</span>
-                            <span style="font-weight:600; color:#fff; font-size:0.6rem;">${multiplier}x</span>
+                            <span style="font-weight:600; color:#fff; font-size:0.6rem;">${num.toFixed(2)}x</span>
                         </div>
                         <div class="sub-bar-bg">
                             <div class="sub-bar-fill ${fillClass}" style="width: ${percentage}%;"></div>

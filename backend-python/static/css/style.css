@@ -298,6 +298,34 @@
             box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
         }
 
+        .btn-page {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-page:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text);
+        }
+
+        .btn-page:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn-page.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
         .input-text,
         .select-input {
             background: rgba(255, 255, 255, 0.03);

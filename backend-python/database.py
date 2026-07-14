@@ -194,9 +194,15 @@ def init_db():
             hni_x REAL DEFAULT 0.0,
             qib_x REAL DEFAULT 0.0,
             total_x REAL DEFAULT 0.0,
+            gmp TEXT DEFAULT 'N/A',
             updated_at TEXT
         )
     ''')
+
+    try:
+        cursor.execute("ALTER TABLE ipos ADD COLUMN gmp TEXT DEFAULT 'N/A'")
+    except (sqlite3.OperationalError, Exception):
+        pass # Column already exists or table handles it
 
     # Create mutual funds tables
     cursor.execute('''

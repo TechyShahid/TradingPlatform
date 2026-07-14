@@ -1037,6 +1037,10 @@
             initialized: false,
             iposData: [],
             activeFilter: 'All',
+            currentPage: 1,
+            pageSize: 10,
+            dateFrom: '',
+            dateTo: '',
 
             init() {
                 if (this.initialized) return;
@@ -1070,25 +1074,70 @@
                 const content = document.getElementById("ipo-content");
                 const empty = document.getElementById("ipo-empty");
                 const grid = document.getElementById("ipo-grid");
+                const paginationContainer = document.getElementById("ipo-pagination");
 
                 loading.style.display = "none";
                 grid.innerHTML = "";
 
-                const filtered = this.iposData.filter(ipo => {
+                // Show/hide closed filters toolbar based on selection
+                const closedFilters = document.getElementById("ipo-closed-filters");
+                if (closedFilters) {
+                    if (this.activeFilter === 'Closed') {
+                        closedFilters.style.display = "flex";
+                    } else {
+                        closedFilters.style.display = "none";
+                    }
+                }
+
+                let filtered = this.iposData.filter(ipo => {
                     if (this.activeFilter === 'All') return true;
                     return ipo.status.toLowerCase() === this.activeFilter.toLowerCase();
                 });
 
+                // Apply date range filters if Closed is selected
+                if (this.activeFilter === 'Closed') {
+                    if (this.dateFrom) {
+                        filtered = filtered.filter(ipo => {
+                            if (!ipo.issue_end_date || ipo.issue_end_date === "N/A") return false;
+                            return ipo.issue_end_date >= this.dateFrom;
+                        });
+                    }
+                    if (this.dateTo) {
+                        filtered = filtered.filter(ipo => {
+                            if (!ipo.issue_end_date || ipo.issue_end_date === "N/A") return false;
+                            return ipo.issue_end_date <= this.dateTo;
+                        });
+                    }
+                }
+
                 if (filtered.length === 0) {
                     content.style.display = "none";
                     empty.style.display = "block";
+                    if (paginationContainer) paginationContainer.style.display = "none";
                     return;
                 }
 
                 empty.style.display = "none";
                 content.style.display = "block";
 
-                filtered.forEach(ipo => {
+                let displayList = filtered;
+                if (this.activeFilter === 'Closed') {
+                    const totalItems = filtered.length;
+                    const totalPages = Math.ceil(totalItems / this.pageSize);
+
+                    if (this.currentPage > totalPages) this.currentPage = totalPages;
+                    if (this.currentPage < 1) this.currentPage = 1;
+
+                    const startIndex = (this.currentPage - 1) * this.pageSize;
+                    const endIndex = startIndex + this.pageSize;
+                    displayList = filtered.slice(startIndex, endIndex);
+
+                    this.renderPagination(totalPages);
+                } else {
+                    if (paginationContainer) paginationContainer.style.display = "none";
+                }
+
+                displayList.forEach(ipo => {
                     const card = document.createElement("div");
                     card.className = "ipo-card";
 
@@ -1116,12 +1165,22 @@
                         `;
                     }
 
+                    let gmpStyle = "background:rgba(148,163,184,0.1); color:#94a3b8; border:1px solid rgba(148,163,184,0.2);";
+                    if (ipo.gmp && ipo.gmp !== 'N/A' && ipo.gmp !== '₹0' && !ipo.gmp.includes('-')) {
+                        gmpStyle = "background:rgba(16,185,129,0.1); color:#10b981; border:1px solid rgba(16,185,129,0.2);";
+                    } else if (ipo.gmp && ipo.gmp.includes('-')) {
+                        gmpStyle = "background:rgba(239,68,68,0.1); color:#ef4444; border:1px solid rgba(239,68,68,0.2);";
+                    }
+
                     card.innerHTML = `
                         <div class="ipo-header">
                             <div class="ipo-title">${ipo.company_name}</div>
                             <span class="ipo-status-badge ${badgeClass}">${ipo.status}</span>
                         </div>
-                        <div style="font-size:0.6rem; color:#94a3b8; font-weight:600;">Symbol: ${ipo.symbol}</div>
+                        <div style="font-size:0.6rem; color:#94a3b8; font-weight:600; display:flex; justify-content:space-between; align-items:center; margin-bottom:0.6rem;">
+                            <span>Symbol: ${ipo.symbol}</span>
+                            <span style="font-size:0.65rem; padding:0.1rem 0.4rem; border-radius:4px; font-weight:700; ${gmpStyle}">GMP: ${ipo.gmp || 'N/A'}</span>
+                        </div>
                         <div class="ipo-details-grid">
                             <div class="ipo-detail-item">
                                 <span class="ipo-detail-label">Issue Period</span>
@@ -1169,7 +1228,15 @@
 
             filterStatus(status) {
                 this.activeFilter = status;
-                
+                this.currentPage = 1;
+                this.dateFrom = '';
+                this.dateTo = '';
+
+                const dateFromInput = document.getElementById("ipo-date-from");
+                const dateToInput = document.getElementById("ipo-date-to");
+                if (dateFromInput) dateFromInput.value = "";
+                if (dateToInput) dateToInput.value = "";
+
                 const buttons = ['all', 'active', 'upcoming', 'closed'];
                 buttons.forEach(btn => {
                     const el = document.getElementById(`ipo-filter-${btn}`);
@@ -1181,6 +1248,138 @@
                 });
 
                 this.renderIpos();
+            },
+
+            handleDateChange() {
+                const dateFromInput = document.getElementById("ipo-date-from");
+                const dateToInput = document.getElementById("ipo-date-to");
+                this.dateFrom = dateFromInput ? dateFromInput.value : '';
+                this.dateTo = dateToInput ? dateToInput.value : '';
+                this.currentPage = 1;
+                this.renderIpos();
+            },
+
+            clearDateFilters() {
+                const dateFromInput = document.getElementById("ipo-date-from");
+                const dateToInput = document.getElementById("ipo-date-to");
+                if (dateFromInput) dateFromInput.value = "";
+                if (dateToInput) dateToInput.value = "";
+                this.dateFrom = '';
+                this.dateTo = '';
+                this.currentPage = 1;
+                this.renderIpos();
+            },
+
+            renderPagination(totalPages) {
+                const container = document.getElementById("ipo-pagination");
+                if (!container) return;
+
+                if (totalPages <= 1) {
+                    container.style.display = "none";
+                    return;
+                }
+
+                container.style.display = "flex";
+                container.innerHTML = "";
+
+                // Previous
+                const prevBtn = document.createElement("button");
+                prevBtn.className = "btn-page";
+                prevBtn.innerText = "‹ Prev";
+                prevBtn.style.padding = "0.25rem 0.6rem";
+                prevBtn.style.fontSize = "0.65rem";
+                prevBtn.style.borderRadius = "6px";
+                if (this.currentPage === 1) {
+                    prevBtn.disabled = true;
+                    prevBtn.style.opacity = "0.4";
+                    prevBtn.style.cursor = "not-allowed";
+                } else {
+                    prevBtn.onclick = () => {
+                        this.currentPage--;
+                        this.renderIpos();
+                    };
+                }
+                container.appendChild(prevBtn);
+
+                const startPage = Math.max(1, this.currentPage - 2);
+                const endPage = Math.min(totalPages, this.currentPage + 2);
+
+                if (startPage > 1) {
+                    const firstBtn = document.createElement("button");
+                    firstBtn.className = "btn-page";
+                    firstBtn.innerText = "1";
+                    firstBtn.style.padding = "0.25rem 0.6rem";
+                    firstBtn.style.fontSize = "0.65rem";
+                    firstBtn.style.borderRadius = "6px";
+                    firstBtn.onclick = () => {
+                        this.currentPage = 1;
+                        this.renderIpos();
+                    };
+                    container.appendChild(firstBtn);
+
+                    if (startPage > 2) {
+                        const dots = document.createElement("span");
+                        dots.innerText = "...";
+                        dots.style.color = "var(--text-secondary)";
+                        dots.style.fontSize = "0.65rem";
+                        container.appendChild(dots);
+                    }
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                    const pageBtn = document.createElement("button");
+                    pageBtn.className = `btn-page ${i === this.currentPage ? 'active' : ''}`;
+                    pageBtn.innerText = i;
+                    pageBtn.style.padding = "0.25rem 0.6rem";
+                    pageBtn.style.fontSize = "0.65rem";
+                    pageBtn.style.borderRadius = "6px";
+                    pageBtn.onclick = () => {
+                        this.currentPage = i;
+                        this.renderIpos();
+                    };
+                    container.appendChild(pageBtn);
+                }
+
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                        const dots = document.createElement("span");
+                        dots.innerText = "...";
+                        dots.style.color = "var(--text-secondary)";
+                        dots.style.fontSize = "0.65rem";
+                        container.appendChild(dots);
+                    }
+
+                    const lastBtn = document.createElement("button");
+                    lastBtn.className = "btn-page";
+                    lastBtn.innerText = totalPages;
+                    lastBtn.style.padding = "0.25rem 0.6rem";
+                    lastBtn.style.fontSize = "0.65rem";
+                    lastBtn.style.borderRadius = "6px";
+                    lastBtn.onclick = () => {
+                        this.currentPage = totalPages;
+                        this.renderIpos();
+                    };
+                    container.appendChild(lastBtn);
+                }
+
+                // Next
+                const nextBtn = document.createElement("button");
+                nextBtn.className = "btn-page";
+                nextBtn.innerText = "Next ›";
+                nextBtn.style.padding = "0.25rem 0.6rem";
+                nextBtn.style.fontSize = "0.65rem";
+                nextBtn.style.borderRadius = "6px";
+                if (this.currentPage === totalPages) {
+                    nextBtn.disabled = true;
+                    nextBtn.style.opacity = "0.4";
+                    nextBtn.style.cursor = "not-allowed";
+                } else {
+                    nextBtn.onclick = () => {
+                        this.currentPage++;
+                        this.renderIpos();
+                    };
+                }
+                container.appendChild(nextBtn);
             },
 
             async syncSubscriptions() {

@@ -490,6 +490,26 @@
             <button class="btn-page" id="ipo-filter-closed" onclick="IpoController.filterStatus('Closed')" style="padding: 0.25rem 0.6rem; font-size: 0.65rem; border-radius: 6px;">Closed / Listing</button>
         </div>
 
+        <!-- Closed IPO Date Filters -->
+        <div id="ipo-closed-filters" class="card" style="display: none; gap: 0.75rem; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; flex-wrap: wrap; background: rgba(255,255,255,0.015); border: 1px solid rgba(255,255,255,0.03);">
+            <div style="font-size: 0.65rem; color: var(--text-secondary); font-weight: 600; display: flex; align-items: center; gap: 0.3rem;">
+                <span>📅</span> Filter by End Date:
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 0.25rem;">
+                    <span style="font-size: 0.6rem; color: var(--text-secondary);">From</span>
+                    <input type="date" id="ipo-date-from" onchange="IpoController.handleDateChange()" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); color: #fff; padding: 0.2rem 0.4rem; font-size: 0.65rem; border-radius: 4px; outline: none;">
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.25rem;">
+                    <span style="font-size: 0.6rem; color: var(--text-secondary);">To</span>
+                    <input type="date" id="ipo-date-to" onchange="IpoController.handleDateChange()" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); color: #fff; padding: 0.2rem 0.4rem; font-size: 0.65rem; border-radius: 4px; outline: none;">
+                </div>
+                <button class="btn" onclick="IpoController.clearDateFilters()" style="padding: 0.2rem 0.5rem; font-size: 0.6rem; border-radius: 4px; background: rgba(255,255,255,0.05); color: #fff; border: none; cursor: pointer;">
+                    Clear
+                </button>
+            </div>
+        </div>
+
         <!-- Main Layout: Grid of IPO Summary Cards & Subscriptions -->
         <div id="ipo-loading" class="loading" style="padding: 4rem;">Loading IPO market tracker data...</div>
         <div id="ipo-empty" class="empty-state" style="display: none; padding: 4rem;">
@@ -501,6 +521,10 @@
         <div id="ipo-content" style="display: none;">
             <div id="ipo-grid" class="ipo-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 0.75rem; margin-bottom: 0.75rem;">
                 <!-- Injected dynamically -->
+            </div>
+            <!-- Pagination Controls -->
+            <div id="ipo-pagination" style="display: none; justify-content: center; align-items: center; gap: 0.35rem; margin-top: 1rem; padding: 0.5rem 0; flex-wrap: wrap;">
+                <!-- Dynamically injected pagination buttons -->
             </div>
         </div>
     </div>
@@ -794,7 +818,7 @@
             }
         };
     </script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}?v={{ range(100000) | random }}"></script>
 </body>
 
 </html>

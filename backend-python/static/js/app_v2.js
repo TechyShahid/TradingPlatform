@@ -398,6 +398,50 @@
                     btn.disabled = false;
                     btn.innerText = '🤖 Predict Growth (Llama 3 AI)';
                 }
+            },
+
+            async syncDeals() {
+                const syncBtn = document.getElementById("deals-sync-btn");
+                const syncIcon = document.getElementById("deals-sync-icon");
+                const syncText = document.getElementById("deals-sync-text");
+
+                syncBtn.disabled = true;
+                syncIcon.classList.add("sync-spin");
+                syncText.innerText = "Syncing...";
+
+                try {
+                    const response = await fetch("/api/deals/sync", {
+                        method: "POST"
+                    });
+
+                    if (!response.ok) throw new Error("Sync failed");
+                    const resData = await response.json();
+
+                    if (resData.error) throw new Error(resData.error);
+
+                    const toast = document.getElementById("toast");
+                    const toastMsg = document.getElementById("toast-message");
+                    toastMsg.innerText = `Sync complete! Added ${resData.new_bulk_deals} bulk deals and ${resData.new_block_deals} block deals.`;
+                    toast.classList.add("show");
+
+                    setTimeout(() => {
+                        toast.classList.remove("show");
+                    }, 4000);
+
+                    // Reload the deals tables with fresh data
+                    this.tableData['block'] = { data: [], page: 1 };
+                    this.tableData['bulk'] = { data: [], page: 1 };
+                    this.loadDeals('/api/deals/block', 'block');
+                    this.loadDeals('/api/deals/bulk', 'bulk');
+
+                } catch (err) {
+                    console.error("Error during deals sync:", err);
+                    alert("Failed to sync deals. Please check python console log.");
+                } finally {
+                    syncBtn.disabled = false;
+                    syncIcon.classList.remove("sync-spin");
+                    syncText.innerText = "Sync Deals";
+                }
             }
         };
 

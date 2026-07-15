@@ -14,13 +14,26 @@ def dict_factory(cursor, row):
     return d
 
 
+# SQL helper to sort DD-MMM-YYYY dates chronologically
+DATE_SORT_SQL = """
+    SUBSTR(deal_date, -4) DESC,
+    CASE SUBSTR(deal_date, 4, 3)
+        WHEN 'JAN' THEN '01' WHEN 'FEB' THEN '02' WHEN 'MAR' THEN '03'
+        WHEN 'APR' THEN '04' WHEN 'MAY' THEN '05' WHEN 'JUN' THEN '06'
+        WHEN 'JUL' THEN '07' WHEN 'AUG' THEN '08' WHEN 'SEP' THEN '09'
+        WHEN 'OCT' THEN '10' WHEN 'NOV' THEN '11' WHEN 'DEC' THEN '12'
+    END DESC,
+    CAST(SUBSTR(deal_date, 1, 2) AS INTEGER) DESC
+"""
+
+
 @deals_bp.route('/api/deals/bulk')
 def get_bulk_deals():
     try:
         conn = database.get_db_connection()
         conn.row_factory = dict_factory
         cur = conn.cursor()
-        cur.execute("SELECT * FROM bulk_deals ORDER BY deal_date DESC LIMIT 500")
+        cur.execute(f"SELECT * FROM bulk_deals ORDER BY {DATE_SORT_SQL} LIMIT 500")
         rows = cur.fetchall()
         conn.close()
         return jsonify(rows)
@@ -34,7 +47,7 @@ def get_block_deals():
         conn = database.get_db_connection()
         conn.row_factory = dict_factory
         cur = conn.cursor()
-        cur.execute("SELECT * FROM block_deals ORDER BY deal_date DESC LIMIT 500")
+        cur.execute(f"SELECT * FROM block_deals ORDER BY {DATE_SORT_SQL} LIMIT 500")
         rows = cur.fetchall()
         conn.close()
         return jsonify(rows)
@@ -100,5 +113,20 @@ def ai_predict_growth():
         # Llama 3 analysis might take 10-30 seconds depending on hardware
         predictions = ai_analyzer.predict_growth_stocks()
         return jsonify(predictions)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@deals_bp.route('/api/deals/sync', methods=['POST'])
+def sync_deals():
+    """Trigger a live fetch of bulk and block deals from NSE."""
+    try:
+        import fetch_nse_deals
+        result = fetch_nse_deals.fetch_and_store_deals(period="1M")
+        return jsonify({
+            'status': 'success',
+            'new_bulk_deals': result.get('new_bulk_deals', 0),
+            'new_block_deals': result.get('new_block_deals', 0)
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500

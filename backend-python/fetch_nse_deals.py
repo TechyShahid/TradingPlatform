@@ -24,6 +24,7 @@ def convert_to_int(val):
 def fetch_and_store_deals(period="1M"):
     """
     Fetches bulk and block deals for the given period and stores them in the database.
+    Returns a dict with counts of new deals inserted.
     """
     print(f"Fetching data for period: {period}")
     
@@ -104,6 +105,11 @@ def fetch_and_store_deals(period="1M"):
     finally:
         conn.close()
         print("Done fetching and storing deals.")
+    
+    return {
+        'new_bulk_deals': new_bulk_deals,
+        'new_block_deals': new_block_deals
+    }
 
 if __name__ == '__main__':
     # Initial fetch for the last 1 month

@@ -47,6 +47,53 @@ def get_market_data_summary():
     return summary
 
 
+def call_groq_api(prompt):
+    """Call Groq Cloud API which runs Llama 3 with ultra-fast inference (free tier)"""
+    import os
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("GROQ_API_KEY not found")
+
+    url = "https://api.groq.com/openai/v1/chat/completions"
+
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are an expert quantitative financial analyst. Respond ONLY with valid JSON arrays. No markdown, no explanation, no code fences."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.6,
+        "max_tokens": 2048,
+        "response_format": {"type": "json_object"}
+    }
+
+    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), method='POST')
+    req.add_header('Content-Type', 'application/json')
+    req.add_header('Authorization', f'Bearer {api_key}')
+
+    response = urllib.request.urlopen(req, timeout=60)
+    res_data = json.loads(response.read().decode('utf-8'))
+
+    text = res_data['choices'][0]['message']['content'].strip()
+    parsed = json.loads(text)
+
+    # Handle both {"predictions": [...]} wrapper and direct [...] array
+    if isinstance(parsed, dict):
+        for key in ['predictions', 'stocks', 'results', 'data']:
+            if key in parsed and isinstance(parsed[key], list):
+                return parsed[key]
+        # If dict has symbol key, it's a single prediction
+        if 'symbol' in parsed:
+            return [parsed]
+    return parsed
+
+
 def call_gemini_api(prompt):
     import os
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -169,43 +216,57 @@ def get_heuristic_predictions():
     return candidates[:10]
 
 def predict_growth_stocks():
-    """Predicts top 10 growth stocks using Gemini API, Ollama (Llama 3), or heuristic fallback"""
+    """Predicts top 10 growth stocks using Groq (Llama 3), Gemini API, Ollama, or heuristic fallback"""
     import os
     market_data = get_market_data_summary()
 
-    prompt = f"""
-You are an expert quantitative financial analyst. I am providing you with two sets of recent data from the Indian Stock Market (NSE):
-1. Institutional Buying Activity: Stocks that large institutions are buying in bulk/block deals.
-2. Fundamental Growth Data: Stocks showing strong Year-over-Year (YoY) revenue and profit growth.
+    prompt = f"""You are an expert quantitative financial analyst specializing in the Indian Stock Market (NSE).
 
-Based ONLY on the data below, select EXACTLY 10 stocks that have the highest probability of returning 15% or more growth in the next year.
-If a stock is in both lists, prioritize it. Otherwise, fill the remaining spots with stocks from the Institutional Buying list that have massive volume. YOU MUST OUTPUT 10 STOCKS.
+I am providing you with two datasets:
+1. **Institutional Buying Activity**: Stocks that large institutions (mutual funds, FIIs, DIIs) are actively buying in bulk/block deals. Higher buy_count and total_bought indicate stronger institutional conviction.
+2. **Fundamental Growth Data**: Stocks showing strong Year-over-Year (YoY) revenue and profit growth.
+
+Your task: Select EXACTLY 10 stocks with the highest growth potential for the next 12 months.
+
+**CRITICAL RULES:**
+- Each stock MUST have a DIFFERENT predicted_growth_pct value (no two stocks can have the same percentage)
+- Range your predictions between 8% and 45% based on the strength of evidence
+- Stocks appearing in BOTH lists deserve higher growth predictions (25-45%)
+- Stocks with very high institutional buying volume but no fundamental data: predict 15-25%
+- Stocks with good fundamentals but low institutional interest: predict 8-18%
+- Your reasoning MUST cite specific numbers from the data (buy count, volume, revenue growth %)
+- Do NOT give generic reasoning — be specific about WHY each stock differs
 
 Here is the data:
 {market_data}
 
-Output your response as a JSON array containing exactly 10 objects.
+Output a JSON object with a "predictions" key containing an array of exactly 10 objects sorted by predicted_growth_pct descending.
 
-Example format:
-[
-  {{
-    "symbol": "TCS",
-    "company_name": "Tata Consultancy Services",
-    "predicted_growth_pct": 16,
-    "reasoning": "Consistent revenue growth and strong institutional buying."
-  }},
-  {{
-    "symbol": "RELIANCE",
-    "company_name": "Reliance Industries",
-    "predicted_growth_pct": 18,
-    "reasoning": "High overlap in bulk deals and solid profit margins."
-  }}
-]
-
-JSON Output:
+Required format:
+{{{{
+  "predictions": [
+    {{{{
+      "symbol": "STOCKNAME",
+      "company_name": "Full Company Name",
+      "predicted_growth_pct": 32,
+      "reasoning": "Specific reason citing data numbers..."
+    }}}}
+  ]
+}}}}
 """
 
-    # 1. Try Google Gemini API if configured
+    # 1. Try Groq Cloud API (Llama 3) — best quality, free tier
+    if os.environ.get("GROQ_API_KEY"):
+        print("[AI Analyzer] Requesting predictions from Groq Cloud (Llama 3)...")
+        try:
+            result = call_groq_api(prompt)
+            if result and len(result) > 0:
+                print(f"[AI Analyzer] Groq returned {len(result)} predictions successfully.")
+                return result
+        except Exception as e:
+            print(f"[AI Analyzer] Groq API error: {e}. Trying fallback...")
+
+    # 2. Try Google Gemini API as fallback
     if os.environ.get("GEMINI_API_KEY"):
         print("[AI Analyzer] Requesting predictions from Google Gemini API...")
         try:
@@ -213,7 +274,7 @@ JSON Output:
         except Exception as e:
             print(f"[AI Analyzer] Gemini API error: {e}. Trying fallback...")
 
-    # 2. Try Local Ollama (Llama 3)
+    # 3. Try Local Ollama (Llama 3) — only works on local dev machine
     print("[AI Analyzer] Requesting predictions from local Ollama (Llama 3)...")
     data = {
         "model": "llama3:latest",
@@ -260,7 +321,7 @@ JSON Output:
         return predictions
     except Exception as e:
         print(f"[AI Analyzer] Ollama error: {e}")
-        # 3. Fall back to high-quality heuristic calculator
+        # 4. Fall back to high-quality heuristic calculator
         return get_heuristic_predictions()
 
 if __name__ == '__main__':

@@ -76,6 +76,7 @@ def call_groq_api(prompt):
     req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), method='POST')
     req.add_header('Content-Type', 'application/json')
     req.add_header('Authorization', f'Bearer {api_key}')
+    req.add_header('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
 
     response = urllib.request.urlopen(req, timeout=60)
     res_data = json.loads(response.read().decode('utf-8'))

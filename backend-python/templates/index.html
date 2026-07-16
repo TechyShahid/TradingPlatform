@@ -550,7 +550,10 @@
                     <div class="search-box" style="flex: 1;">
                         <input type="text" id="fund-search" placeholder="Search mutual funds by name or AMFI..." onkeyup="ExplorerController.search()" style="width: 100%; padding: 0.35rem 0.6rem; font-size: 0.68rem;">
                     </div>
-                    <div class="filter-dropdowns">
+                    <div class="filter-dropdowns" style="display: flex; gap: 0.5rem; align-items: center;">
+                        <button class="btn" id="btn-top10-funds" onclick="ExplorerController.toggleTop10()" style="padding: 0.35rem 0.6rem; font-size: 0.68rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: #cbd5e1; cursor: pointer;">
+                            🔥 Top 10 Performing
+                        </button>
                         <select id="category-filter" onchange="ExplorerController.filterCategory()" style="padding: 0.35rem 0.6rem; font-size: 0.68rem; min-width: 140px;">
                             <option value="All">All Categories</option>
                             <option value="Equity">Equity Funds</option>
@@ -561,7 +564,7 @@
                 </div>
             </div>
 
-            <div class="card table-card" style="padding: 0;">
+            <div class="card table-card" style="padding: 0; margin-bottom: 0.5rem;">
                 <div class="table-container">
                     <table>
                         <thead>
@@ -583,6 +586,10 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+            
+            <div id="funds-pagination" style="display: none; justify-content: center; align-items: center; gap: 0.35rem; padding: 0.5rem 0; flex-wrap: wrap;">
+                <!-- Dynamically injected pagination buttons -->
             </div>
         </div>
 

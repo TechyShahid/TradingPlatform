@@ -14,11 +14,14 @@ funds_bp = Blueprint('funds', __name__)
 def list_funds():
     category = request.args.get('category', 'All')
     search_query = request.args.get('search', '')
+    top10 = request.args.get('top10', 'false').lower() == 'true'
+    page = int(request.args.get('page', '1'))
+    limit = int(request.args.get('limit', '10'))
     
     conn = database.get_db_connection()
     cursor = conn.cursor()
     
-    query = "SELECT * FROM funds WHERE 1=1"
+    query = "FROM funds WHERE 1=1"
     params = []
     
     if category != 'All':
@@ -30,14 +33,26 @@ def list_funds():
         params.append(f"%{search_query}%")
         params.append(f"%{search_query}%")
         
-    cursor.execute(query, params)
+    # Get total count
+    cursor.execute(f"SELECT COUNT(*) {query}", params)
+    total_count = cursor.fetchone()[0]
+    
+    if top10:
+        query += " AND return_1y != 0.0 ORDER BY return_1y DESC"
+        page = 1
+        limit = 10
+    else:
+        query += " ORDER BY scheme_name ASC"
+        
+    query += " LIMIT ? OFFSET ?"
+    params.extend([limit, (page - 1) * limit])
+    
+    cursor.execute(f"SELECT * {query}", params)
     rows = cursor.fetchall()
     
     funds_list = []
     for r in rows:
         amfi = r['amfi_code']
-        stats = get_analytics(amfi)
-        
         funds_list.append({
             "amfi_code": amfi,
             "scheme_name": r["scheme_name"],
@@ -50,11 +65,20 @@ def list_funds():
             "aum": r["aum"],
             "star_rating": r["star_rating"],
             "launch_date": r["launch_date"],
-            "stats": stats
+            "stats": {
+                "return_1y": r["return_1y"] if r["return_1y"] else 0.0,
+                "return_3y": r["return_3y"] if r["return_3y"] else 0.0,
+                "return_5y": r["return_5y"] if r["return_5y"] else 0.0
+            }
         })
         
     conn.close()
-    return jsonify(funds_list)
+    return jsonify({
+        "funds": funds_list,
+        "total": total_count,
+        "page": page,
+        "limit": limit
+    })
 
 
 @funds_bp.route('/api/funds/<amfi_code>')
@@ -68,6 +92,39 @@ def fund_details(amfi_code):
         conn.close()
         return jsonify({"error": "Fund not found"}), 404
         
+    # Check if we have historical NAV data cached
+    cursor.execute("SELECT COUNT(*) FROM fund_nav_history WHERE amfi_code = ?", (amfi_code,))
+    nav_count = cursor.fetchone()[0]
+    
+    # If not (e.g. only 1 latest NAV record seeded), fetch full history on-demand
+    if nav_count <= 1:
+        print(f"[Funds Route] Dynamic on-demand fetch of history for AMFI code {amfi_code}...")
+        import seeder_funds
+        navs = seeder_funds.fetch_real_nav_history(amfi_code)
+        if navs:
+            cursor.executemany('''
+                INSERT OR REPLACE INTO fund_nav_history (
+                    amfi_code, nav_date, nav_price
+                ) VALUES (?, ?, ?)
+            ''', [(amfi_code, d, p) for d, p in navs])
+            conn.commit()
+            
+            # Pre-calculate performance returns immediately
+            import services.fund_analytics
+            stats = services.fund_analytics.get_analytics(amfi_code)
+            if stats:
+                cursor.execute('''
+                    UPDATE funds 
+                    SET return_1y = ?, return_3y = ?, return_5y = ?
+                    WHERE amfi_code = ?
+                ''', (stats["return_1y"], stats["return_3y"], stats["return_5y"], amfi_code))
+    # Ensure NAV history cache is populated
+    ensure_fund_history(cursor, conn, amfi_code)
+    
+    # Refresh metadata to pick up return percentages
+    cursor.execute("SELECT * FROM funds WHERE amfi_code = ?", (amfi_code,))
+    f = cursor.fetchone()
+    
     fund_info = {
         "amfi_code": f["amfi_code"],
         "scheme_name": f["scheme_name"],
@@ -92,6 +149,7 @@ def fund_details(amfi_code):
     
     nav_history = []
     for idx, r in enumerate(raw_navs):
+        # Downsample to keep JSON size under control
         if idx % 10 == 0 or idx == len(raw_navs) - 1:
             nav_history.append({"date": r["nav_date"], "price": r["nav_price"]})
             
@@ -118,6 +176,8 @@ def compare_funds():
         if not r:
             continue
             
+        # Ensure NAV history cache is populated
+        ensure_fund_history(cursor, conn, amfi)
         stats = get_analytics(amfi)
         
         cursor.execute("SELECT asset_name, allocation_pct FROM fund_portfolio WHERE amfi_code = ?", (amfi,))
@@ -158,6 +218,9 @@ def predict_nav():
         
     conn = database.get_db_connection()
     cursor = conn.cursor()
+    
+    # Ensure NAV history cache is populated
+    ensure_fund_history(cursor, conn, amfi_code)
     
     cursor.execute("SELECT nav_date, nav_price FROM fund_nav_history WHERE amfi_code = ? ORDER BY nav_date ASC", (amfi_code,))
     rows = cursor.fetchall()

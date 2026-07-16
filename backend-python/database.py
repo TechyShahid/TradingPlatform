@@ -217,9 +217,27 @@ def init_db():
             fund_manager TEXT,            -- fund manager name
             aum REAL,                     -- AUM in Crores (INR)
             star_rating INTEGER DEFAULT 3, -- 1-5 stars
-            launch_date TEXT
+            launch_date TEXT,
+            return_1y REAL DEFAULT 0.0,
+            return_3y REAL DEFAULT 0.0,
+            return_5y REAL DEFAULT 0.0
         )
     ''')
+
+    try:
+        cursor.execute("ALTER TABLE funds ADD COLUMN return_1y REAL DEFAULT 0.0")
+    except (sqlite3.OperationalError, Exception):
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE funds ADD COLUMN return_3y REAL DEFAULT 0.0")
+    except (sqlite3.OperationalError, Exception):
+        pass
+
+    try:
+        cursor.execute("ALTER TABLE funds ADD COLUMN return_5y REAL DEFAULT 0.0")
+    except (sqlite3.OperationalError, Exception):
+        pass
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS fund_nav_history (

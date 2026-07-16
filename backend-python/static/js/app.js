@@ -1502,6 +1502,9 @@
         const ExplorerController = {
             initialized: false,
             fundsData: [],
+            currentPage: 1,
+            pageSize: 10,
+            top10Mode: false,
 
             init() {
                 if (this.initialized) return;
@@ -1518,14 +1521,31 @@
                 
                 try {
                     const params = new URLSearchParams();
-                    if (cat !== 'All') params.append('category', cat);
-                    if (search) params.append('search', search);
+                    params.append('page', this.currentPage);
+                    params.append('limit', this.pageSize);
+                    
+                    if (this.top10Mode) {
+                        params.append('top10', 'true');
+                    } else {
+                        if (cat !== 'All') params.append('category', cat);
+                        if (search) params.append('search', search);
+                    }
                     
                     const response = await fetch(`/api/funds?${params.toString()}`);
                     if (!response.ok) throw new Error("Failed to fetch funds list");
                     const data = await response.json();
-                    this.fundsData = data;
-                    this.renderTable(data);
+                    
+                    this.fundsData = data.funds;
+                    this.renderTable(data.funds);
+                    
+                    const pagContainer = document.getElementById("funds-pagination");
+                    if (this.top10Mode) {
+                        pagContainer.style.display = "none";
+                    } else {
+                        pagContainer.style.display = "flex";
+                        const totalPages = Math.ceil(data.total / this.pageSize) || 1;
+                        this.renderPagination(totalPages);
+                    }
                 } catch (err) {
                     console.error("Error fetching funds:", err);
                     tbody.innerHTML = '<tr><td colspan="10" class="loading" style="color:var(--danger)">Failed to load mutual funds.</td></tr>';
@@ -1563,12 +1583,116 @@
                 });
             },
 
+            renderPagination(totalPages) {
+                const container = document.getElementById("funds-pagination");
+                container.innerHTML = "";
+
+                const prevBtn = document.createElement("button");
+                prevBtn.className = "btn-page";
+                prevBtn.innerText = "Previous";
+                prevBtn.disabled = this.currentPage === 1;
+                prevBtn.onclick = () => {
+                    this.currentPage--;
+                    this.fetchFunds();
+                };
+                container.appendChild(prevBtn);
+
+                let startPage = Math.max(1, this.currentPage - 2);
+                let endPage = Math.min(totalPages, this.currentPage + 2);
+
+                if (startPage > 1) {
+                    const firstBtn = document.createElement("button");
+                    firstBtn.className = "btn-page";
+                    firstBtn.innerText = "1";
+                    firstBtn.onclick = () => {
+                        this.currentPage = 1;
+                        this.fetchFunds();
+                    };
+                    container.appendChild(firstBtn);
+                    
+                    if (startPage > 2) {
+                        const dots = document.createElement("span");
+                        dots.innerText = "...";
+                        dots.style.color = "rgba(255,255,255,0.4)";
+                        dots.style.padding = "0 0.25rem";
+                        container.appendChild(dots);
+                    }
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                    const btn = document.createElement("button");
+                    btn.className = `btn-page ${i === this.currentPage ? 'active' : ''}`;
+                    btn.innerText = i;
+                    btn.onclick = () => {
+                        this.currentPage = i;
+                        this.fetchFunds();
+                    };
+                    container.appendChild(btn);
+                }
+
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                        const dots = document.createElement("span");
+                        dots.innerText = "...";
+                        dots.style.color = "rgba(255,255,255,0.4)";
+                        dots.style.padding = "0 0.25rem";
+                        container.appendChild(dots);
+                    }
+                    const lastBtn = document.createElement("button");
+                    lastBtn.className = "btn-page";
+                    lastBtn.innerText = totalPages;
+                    lastBtn.onclick = () => {
+                        this.currentPage = totalPages;
+                        this.fetchFunds();
+                    };
+                    container.appendChild(lastBtn);
+                }
+
+                const nextBtn = document.createElement("button");
+                nextBtn.className = "btn-page";
+                nextBtn.innerText = "Next";
+                nextBtn.disabled = this.currentPage === totalPages;
+                nextBtn.onclick = () => {
+                    this.currentPage++;
+                    this.fetchFunds();
+                };
+                container.appendChild(nextBtn);
+            },
+
             search() {
+                this.top10Mode = false;
+                this.updateTop10ButtonUI();
+                this.currentPage = 1;
                 this.fetchFunds();
             },
 
             filterCategory() {
+                this.top10Mode = false;
+                this.updateTop10ButtonUI();
+                this.currentPage = 1;
                 this.fetchFunds();
+            },
+
+            toggleTop10() {
+                this.top10Mode = !this.top10Mode;
+                this.updateTop10ButtonUI();
+                this.currentPage = 1;
+                this.fetchFunds();
+            },
+
+            updateTop10ButtonUI() {
+                const btn = document.getElementById("btn-top10-funds");
+                if (this.top10Mode) {
+                    btn.style.background = "var(--accent)";
+                    btn.style.borderColor = "var(--accent)";
+                    btn.style.color = "#fff";
+                    btn.style.boxShadow = "var(--accent-glow)";
+                } else {
+                    btn.style.background = "rgba(255,255,255,0.02)";
+                    btn.style.borderColor = "rgba(255,255,255,0.08)";
+                    btn.style.color = "#cbd5e1";
+                    btn.style.boxShadow = "none";
+                }
             }
         };
 
@@ -1803,10 +1927,10 @@
                 this.initialized = true;
                 
                 try {
-                    const response = await fetch("/api/funds");
+                    const response = await fetch("/api/funds?limit=100");
                     if (!response.ok) throw new Error("Failed to load options");
                     const data = await response.json();
-                    this.fundsList = data;
+                    this.fundsList = data.funds || [];
                     
                     this.populateSelects();
                 } catch (err) {

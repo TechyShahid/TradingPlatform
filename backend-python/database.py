@@ -76,6 +76,20 @@ def get_db_connection():
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
+        
+        # Register a safe case-insensitive REGEXP function for regex symbol searching
+        import re
+        def regexp(expr, item):
+            if not expr:
+                return True
+            if not item:
+                return False
+            try:
+                return re.search(expr, item, re.IGNORECASE) is not None
+            except:
+                return expr.lower() in item.lower()
+        conn.create_function("REGEXP", 2, regexp)
+        
         return conn
 
 def init_db():

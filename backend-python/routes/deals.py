@@ -1,7 +1,4 @@
-"""
-Deals routes — block/bulk deals, fundamental growth, compounders, and AI predictions.
-"""
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 import database
 
 deals_bp = Blueprint('deals', __name__)
@@ -26,14 +23,48 @@ DATE_SORT_SQL = """
     CAST(SUBSTR(deal_date, 1, 2) AS INTEGER) DESC
 """
 
+# SQL helper to convert DD-MMM-YYYY to sortable YYYY-MM-DD
+DATE_CONVERT_SQL = """
+    SUBSTR(deal_date, 8, 4) || '-' ||
+    CASE SUBSTR(deal_date, 4, 3)
+        WHEN 'JAN' THEN '01' WHEN 'FEB' THEN '02' WHEN 'MAR' THEN '03'
+        WHEN 'APR' THEN '04' WHEN 'MAY' THEN '05' WHEN 'JUN' THEN '06'
+        WHEN 'JUL' THEN '07' WHEN 'AUG' THEN '08' WHEN 'SEP' THEN '09'
+        WHEN 'OCT' THEN '10' WHEN 'NOV' THEN '11' WHEN 'DEC' THEN '12'
+    END || '-' ||
+    SUBSTR(deal_date, 1, 2)
+"""
+
 
 @deals_bp.route('/api/deals/bulk')
 def get_bulk_deals():
     try:
+        symbol = request.args.get('symbol', '')
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
+        
         conn = database.get_db_connection()
         conn.row_factory = dict_factory
         cur = conn.cursor()
-        cur.execute(f"SELECT * FROM bulk_deals ORDER BY {DATE_SORT_SQL} LIMIT 500")
+        
+        query = "SELECT * FROM bulk_deals WHERE 1=1"
+        params = []
+        
+        if symbol:
+            query += " AND symbol REGEXP ?"
+            params.append(symbol)
+            
+        if start_date:
+            query += f" AND {DATE_CONVERT_SQL} >= ?"
+            params.append(start_date)
+            
+        if end_date:
+            query += f" AND {DATE_CONVERT_SQL} <= ?"
+            params.append(end_date)
+            
+        query += f" ORDER BY {DATE_SORT_SQL} LIMIT 500"
+        
+        cur.execute(query, params)
         rows = cur.fetchall()
         conn.close()
         return jsonify(rows)
@@ -44,10 +75,32 @@ def get_bulk_deals():
 @deals_bp.route('/api/deals/block')
 def get_block_deals():
     try:
+        symbol = request.args.get('symbol', '')
+        start_date = request.args.get('start_date', '')
+        end_date = request.args.get('end_date', '')
+        
         conn = database.get_db_connection()
         conn.row_factory = dict_factory
         cur = conn.cursor()
-        cur.execute(f"SELECT * FROM block_deals ORDER BY {DATE_SORT_SQL} LIMIT 500")
+        
+        query = "SELECT * FROM block_deals WHERE 1=1"
+        params = []
+        
+        if symbol:
+            query += " AND symbol REGEXP ?"
+            params.append(symbol)
+            
+        if start_date:
+            query += f" AND {DATE_CONVERT_SQL} >= ?"
+            params.append(start_date)
+            
+        if end_date:
+            query += f" AND {DATE_CONVERT_SQL} <= ?"
+            params.append(end_date)
+            
+        query += f" ORDER BY {DATE_SORT_SQL} LIMIT 500"
+        
+        cur.execute(query, params)
         rows = cur.fetchall()
         conn.close()
         return jsonify(rows)

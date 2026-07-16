@@ -261,8 +261,8 @@
                 if (this.initialized) return;
                 this.initialized = true;
 
-                this.loadDeals('/api/deals/block', 'block');
-                this.loadDeals('/api/deals/bulk', 'bulk');
+                this.loadDeals('block');
+                this.loadDeals('bulk');
             },
 
             formatCurrency(num) {
@@ -335,23 +335,62 @@
                 this.renderTable(type);
             },
 
-            async loadDeals(endpoint, type) {
+            filterTimeout: null,
+            handleFilterChange() {
+                clearTimeout(this.filterTimeout);
+                this.filterTimeout = setTimeout(() => {
+                    this.loadDeals('block');
+                    this.loadDeals('bulk');
+                }, 250);
+            },
+
+            clearFilters() {
+                document.getElementById("deal-symbol-search").value = "";
+                document.getElementById("deal-date-from").value = "";
+                document.getElementById("deal-date-to").value = "";
+                this.handleFilterChange();
+            },
+
+            async loadDeals(type) {
+                const loader = document.getElementById(`${type}-loading`);
+                const table = document.getElementById(`${type}-table`);
+                const pagination = document.getElementById(`${type}-pagination`);
+                
+                loader.style.display = 'block';
+                loader.innerText = 'Loading deals list...';
+                table.style.display = 'none';
+                pagination.style.display = 'none';
+
+                const symbol = document.getElementById("deal-symbol-search").value;
+                const start = document.getElementById("deal-date-from").value;
+                const end = document.getElementById("deal-date-to").value;
+
                 try {
-                    const res = await fetch(endpoint);
-                    this.tableData[type].data = await res.json();
+                    const params = new URLSearchParams();
+                    if (symbol) params.append('symbol', symbol);
+                    if (start) params.append('start_date', start);
+                    if (end) params.append('end_date', end);
 
-                    document.getElementById(`${type}-loading`).style.display = 'none';
-                    document.getElementById(`${type}-table`).style.display = 'table';
-                    document.getElementById(`${type}-pagination`).style.display = 'flex';
+                    const response = await fetch(`/api/deals/${type}?${params.toString()}`);
+                    const data = await response.json();
+                    
+                    this.tableData[type].data = data;
+                    this.tableData[type].page = 1;
 
-                    if (this.tableData[type].data.length === 0) {
-                        document.getElementById(`${type}-body`).innerHTML = `<tr><td colspan="6" style="text-align:center;">No data found.</td></tr>`;
-                        document.getElementById(`${type}-pagination`).style.display = 'none';
+                    loader.style.display = 'none';
+                    table.style.display = 'table';
+                    pagination.style.display = 'flex';
+
+                    if (data.length === 0) {
+                        document.getElementById(`${type}-body`).innerHTML = `<tr><td colspan="6" style="text-align:center;">No data found matching criteria.</td></tr>`;
+                        pagination.style.display = 'none';
                         return;
                     }
                     this.renderTable(type);
                 } catch (err) {
-                    document.getElementById(`${type}-loading`).innerText = 'Failed to load data.';
+                    console.error(`Error loading ${type} deals:`, err);
+                    loader.style.display = 'block';
+                    loader.innerText = 'Failed to load data matching filters.';
                 }
             },
 

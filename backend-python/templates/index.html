@@ -130,14 +130,31 @@
 
         <!-- 2. Recent Deals View -->
         <div id="view-deals" class="view-panel">
-            <div class="card" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem;">
-                <button onclick="DealsController.syncDeals()" id="deals-sync-btn" class="btn btn-accent" style="padding: 0.25rem 0.5rem; font-size: 0.6rem; border-radius: 6px;">
-                    <span id="deals-sync-icon">🔄</span>
-                    <span id="deals-sync-text">Sync Deals</span>
-                </button>
-                <button onclick="DealsController.runAiAnalysis()" id="deals-ai-btn" class="btn btn-accent">
-                    🤖 Predict Growth (Llama 3 AI)
-                </button>
+            <div class="card" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem;">
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <button onclick="DealsController.syncDeals()" id="deals-sync-btn" class="btn btn-accent" style="padding: 0.35rem 0.6rem; font-size: 0.68rem; border-radius: 6px;">
+                        <span id="deals-sync-icon">🔄</span>
+                        <span id="deals-sync-text">Sync Deals</span>
+                    </button>
+                    <button onclick="DealsController.runAiAnalysis()" id="deals-ai-btn" class="btn btn-accent" style="padding: 0.35rem 0.6rem; font-size: 0.68rem; border-radius: 6px;">
+                        🤖 Predict Growth (Llama 3 AI)
+                    </button>
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <input type="text" id="deal-symbol-search" placeholder="Search symbol (regex support)..." onkeyup="DealsController.handleFilterChange()" style="padding: 0.35rem 0.6rem; font-size: 0.68rem; min-width: 180px;">
+                    <div style="display: flex; gap: 0.25rem; align-items: center;">
+                        <span style="font-size: 0.65rem; color: rgba(255,255,255,0.6)">From:</span>
+                        <input type="date" id="deal-date-from" onchange="DealsController.handleFilterChange()" style="padding: 0.35rem 0.6rem; font-size: 0.68rem; width: 110px;">
+                    </div>
+                    <div style="display: flex; gap: 0.25rem; align-items: center;">
+                        <span style="font-size: 0.65rem; color: rgba(255,255,255,0.6)">To:</span>
+                        <input type="date" id="deal-date-to" onchange="DealsController.handleFilterChange()" style="padding: 0.35rem 0.6rem; font-size: 0.68rem; width: 110px;">
+                    </div>
+                    <button onclick="DealsController.clearFilters()" class="btn" style="padding: 0.35rem 0.6rem; font-size: 0.68rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: #cbd5e1; cursor: pointer;">
+                        Clear
+                    </button>
+                </div>
             </div>
 
             <!-- AI Predictions Panel -->

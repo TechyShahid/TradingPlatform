@@ -10,14 +10,50 @@ from services.fund_analytics import get_analytics
 funds_bp = Blueprint('funds', __name__)
 
 
+def ensure_fund_history(cursor, conn, amfi_code):
+    """Ensures historical NAV records are loaded from AMFI API on-demand if they are not already cached."""
+    cursor.execute("SELECT COUNT(*) FROM fund_nav_history WHERE amfi_code = ?", (amfi_code,))
+    nav_count = cursor.fetchone()[0]
+    
+    if nav_count <= 1:
+        print(f"[Funds Dynamic Fetch] Fetching history for {amfi_code}...")
+        import seeder_funds
+        navs = seeder_funds.fetch_real_nav_history(amfi_code)
+        if navs:
+            cursor.executemany('''
+                INSERT OR REPLACE INTO fund_nav_history (
+                    amfi_code, nav_date, nav_price
+                ) VALUES (?, ?, ?)
+            ''', [(amfi_code, d, p) for d, p in navs])
+            conn.commit()
+            
+            import services.fund_analytics
+            stats = services.fund_analytics.get_analytics(amfi_code)
+            if stats:
+                cursor.execute('''
+                    UPDATE funds 
+                    SET return_1y = ?, return_3y = ?, return_5y = ?
+                    WHERE amfi_code = ?
+                ''', (stats["return_1y"], stats["return_3y"], stats["return_5y"], amfi_code))
+                conn.commit()
+
+
 @funds_bp.route('/api/funds')
 def list_funds():
     category = request.args.get('category', 'All')
     search_query = request.args.get('search', '')
     top10 = request.args.get('top10', 'false').lower() == 'true'
     page = int(request.args.get('page', '1'))
-    limit = int(request.args.get('limit', '10'))
     
+    limit_val = request.args.get('limit', '10')
+    if limit_val == 'all':
+        limit = 20000
+    else:
+        try:
+            limit = int(limit_val)
+        except ValueError:
+            limit = 10
+            
     conn = database.get_db_connection()
     cursor = conn.cursor()
     
@@ -92,33 +128,7 @@ def fund_details(amfi_code):
         conn.close()
         return jsonify({"error": "Fund not found"}), 404
         
-    # Check if we have historical NAV data cached
-    cursor.execute("SELECT COUNT(*) FROM fund_nav_history WHERE amfi_code = ?", (amfi_code,))
-    nav_count = cursor.fetchone()[0]
-    
-    # If not (e.g. only 1 latest NAV record seeded), fetch full history on-demand
-    if nav_count <= 1:
-        print(f"[Funds Route] Dynamic on-demand fetch of history for AMFI code {amfi_code}...")
-        import seeder_funds
-        navs = seeder_funds.fetch_real_nav_history(amfi_code)
-        if navs:
-            cursor.executemany('''
-                INSERT OR REPLACE INTO fund_nav_history (
-                    amfi_code, nav_date, nav_price
-                ) VALUES (?, ?, ?)
-            ''', [(amfi_code, d, p) for d, p in navs])
-            conn.commit()
-            
-            # Pre-calculate performance returns immediately
-            import services.fund_analytics
-            stats = services.fund_analytics.get_analytics(amfi_code)
-            if stats:
-                cursor.execute('''
-                    UPDATE funds 
-                    SET return_1y = ?, return_3y = ?, return_5y = ?
-                    WHERE amfi_code = ?
-                ''', (stats["return_1y"], stats["return_3y"], stats["return_5y"], amfi_code))
-    # Ensure NAV history cache is populated
+    # Ensure NAV history cache is populated (fetches on-demand if needed)
     ensure_fund_history(cursor, conn, amfi_code)
     
     # Refresh metadata to pick up return percentages
@@ -179,6 +189,16 @@ def compare_funds():
         # Ensure NAV history cache is populated
         ensure_fund_history(cursor, conn, amfi)
         stats = get_analytics(amfi)
+        if not stats:
+            stats = {
+                "return_1y": 0.0,
+                "return_3y": 0.0,
+                "return_5y": 0.0,
+                "volatility": 0.0,
+                "sharpe_ratio": 0.0,
+                "beta": 1.0,
+                "alpha": 0.0
+            }
         
         cursor.execute("SELECT asset_name, allocation_pct FROM fund_portfolio WHERE amfi_code = ?", (amfi,))
         holdings = {row["asset_name"]: row["allocation_pct"] for row in cursor.fetchall()}

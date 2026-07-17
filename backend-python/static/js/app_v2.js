@@ -1963,7 +1963,6 @@
 
             async init() {
                 if (this.initialized) return;
-                this.initialized = true;
                 
                 try {
                     const response = await fetch("/api/funds?limit=100");
@@ -1972,6 +1971,7 @@
                     this.fundsList = data.funds || [];
                     
                     this.populateSelects();
+                    this.initialized = true;
                 } catch (err) {
                     console.error("Error initializing compare select options:", err);
                 }
@@ -2036,6 +2036,7 @@
 
             renderCompareColumn(scheme, colIndex) {
                 const col = document.getElementById(`compare-fund-col-${colIndex}`);
+                const stats = scheme.stats || {};
                 col.innerHTML = `
                     <h3 style="font-size:0.78rem; font-weight:600; color:#fff; line-height:1.3; border-bottom:1px solid var(--border); padding-bottom:0.4rem;">${scheme.scheme_name}</h3>
                     <div class="metadata-list">
@@ -2053,27 +2054,27 @@
                         </div>
                         <div class="meta-item">
                             <span class="meta-label">1-Year Return</span>
-                            <span class="font-accent font-bold">${scheme.stats.return_1y}%</span>
+                            <span class="font-accent font-bold">${stats.return_1y || '0.0'}%</span>
                         </div>
                         <div class="meta-item">
                             <span class="meta-label">3-Year CAGR</span>
-                            <span class="font-accent font-bold">${scheme.stats.return_3y}%</span>
+                            <span class="font-accent font-bold">${stats.return_3y || '0.0'}%</span>
                         </div>
                         <div class="meta-item">
                             <span class="meta-label">5-Year CAGR</span>
-                            <span class="font-accent font-bold">${scheme.stats.return_5y}%</span>
+                            <span class="font-accent font-bold">${stats.return_5y || '0.0'}%</span>
                         </div>
                         <div class="meta-item">
                             <span class="meta-label">Volatility</span>
-                            <span>${scheme.stats.volatility}%</span>
+                            <span>${stats.volatility || '0.0'}%</span>
                         </div>
                         <div class="meta-item">
                             <span class="meta-label">Sharpe Ratio</span>
-                            <span class="font-bold">${scheme.stats.sharpe_ratio}</span>
+                            <span class="font-bold">${stats.sharpe_ratio || '0.0'}</span>
                         </div>
                         <div class="meta-item">
                             <span class="meta-label">Beta</span>
-                            <span>${scheme.stats.beta}</span>
+                            <span>${stats.beta || '1.0'}</span>
                         </div>
                     </div>
                 `;

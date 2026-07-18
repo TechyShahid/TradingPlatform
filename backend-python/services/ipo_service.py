@@ -11,6 +11,43 @@ import database
 PRICE_REGEX = re.compile(r'Rs\.?\s*(\d+)\s+to\s+Rs\.?\s*(\d+)', re.IGNORECASE)
 PRICE_NUMBERS = re.compile(r'(\d+)')
 
+
+def normalize_date_str(date_str):
+    if not date_str or date_str == "N/A":
+        return "N/A"
+    date_str = str(date_str).strip()
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+        return date_str
+    current_year = datetime.datetime.now().year
+    for fmt in ['%d-%b-%Y', '%d %B %Y', '%d-%b', '%d %B']:
+        try:
+            val = date_str if 'Y' in fmt or 'y' in fmt else f"{date_str} {current_year}"
+            dt = datetime.datetime.strptime(val, fmt)
+            return dt.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+    return date_str
+
+
+def compute_ipo_status(start_date_str, end_date_str, fallback_status="Closed"):
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    start_iso = normalize_date_str(start_date_str)
+    end_iso = normalize_date_str(end_date_str)
+    
+    if end_iso != "N/A" and re.match(r'^\d{4}-\d{2}-\d{2}$', end_iso):
+        if end_iso < today_str:
+            return "Closed", start_iso, end_iso
+            
+    if start_iso != "N/A" and re.match(r'^\d{4}-\d{2}-\d{2}$', start_iso):
+        if start_iso > today_str:
+            return "Upcoming", start_iso, end_iso
+            
+    if start_iso != "N/A" and end_iso != "N/A" and re.match(r'^\d{4}-\d{2}-\d{2}$', start_iso) and re.match(r'^\d{4}-\d{2}-\d{2}$', end_iso):
+        if start_iso <= today_str <= end_iso:
+            return "Active", start_iso, end_iso
+            
+    return fallback_status, start_iso, end_iso
+
 def parse_price_range(price_str):
     """Extracts min and max price, and estimates lot size."""
     if not price_str:
@@ -347,13 +384,7 @@ def fetch_live_ipos():
                 gmp_map.pop(matched_key)
                 
         # Determine status dynamically based on current date vs start/end dates
-        today_str = datetime.date.today().strftime("%Y-%m-%d")
-        if end_date and end_date < today_str:
-            status = "Closed"
-        elif start_date and start_date > today_str:
-            status = "Upcoming"
-        else:
-            status = "Active"
+        status, start_date, end_date = compute_ipo_status(start_date, end_date, fallback_status="Active")
         
         try:
             cur.execute('''
@@ -370,10 +401,10 @@ def fetch_live_ipos():
                     issue_size=excluded.issue_size,
                     lot_size=excluded.lot_size,
                     status=excluded.status,
-                    retail_x=excluded.retail_x,
-                    hni_x=excluded.hni_x,
-                    qib_x=excluded.qib_x,
-                    total_x=excluded.total_x,
+                    retail_x = CASE WHEN excluded.retail_x > 0 THEN excluded.retail_x ELSE ipos.retail_x END,
+                    hni_x = CASE WHEN excluded.hni_x > 0 THEN excluded.hni_x ELSE ipos.hni_x END,
+                    qib_x = CASE WHEN excluded.qib_x > 0 THEN excluded.qib_x ELSE ipos.qib_x END,
+                    total_x = CASE WHEN excluded.total_x > 0 THEN excluded.total_x ELSE ipos.total_x END,
                     gmp=excluded.gmp,
                     updated_at=excluded.updated_at
             ''', (
@@ -442,42 +473,10 @@ def fetch_live_ipos():
             start_date = f"{date_match.group(1)} {date_match.group(3)}"
             end_date = f"{date_match.group(2)} {date_match.group(3)}"
             
-        # Set status
+        # Set status dynamically based on current date
         raw_status = info["status"].lower()
-        if "open" in raw_status or "active" in raw_status:
-            status = "Active"
-        elif "close" in raw_status:
-            status = "Closed"
-        else:
-            status = "Upcoming"
-            
-        # Refine status based on dates if available
-        today_str = datetime.date.today().strftime("%d %B") # e.g. "09 July"
-        # If dates are in standard YYYY-MM-DD format (or we compare year-wise)
-        # But since dates are e.g. "14 July", let's do a simple comparison:
-        # We can try parsing them into standard dates
-        try:
-            current_year = datetime.datetime.now().year
-            if start_date != "N/A" and end_date != "N/A":
-                start_dt = datetime.datetime.strptime(f"{start_date} {current_year}", "%d %B %Y")
-                end_dt = datetime.datetime.strptime(f"{end_date} {current_year}", "%d %B %Y")
-                today_dt = datetime.datetime.now()
-                
-                # Format to standard YYYY-MM-DD for database consistency!
-                start_db = start_dt.strftime("%Y-%m-%d")
-                end_db = end_dt.strftime("%Y-%m-%d")
-                
-                start_date = start_db
-                end_date = end_db
-                
-                if end_dt.date() < today_dt.date():
-                    status = "Closed"
-                elif start_dt.date() > today_dt.date():
-                    status = "Upcoming"
-                else:
-                    status = "Active"
-        except Exception:
-            pass
+        fallback = "Active" if ("open" in raw_status or "active" in raw_status) else ("Closed" if "close" in raw_status else "Upcoming")
+        status, start_date, end_date = compute_ipo_status(start_date, end_date, fallback_status=fallback)
             
         _, _, lot_size = parse_price_range(price_range)
         
@@ -511,5 +510,129 @@ def fetch_live_ipos():
             
     conn.commit()
     conn.close()
-    print(f"[IPO Fetcher] Finished live fetch. persited {success_count} IPO records in database.")
+    print(f"[IPO Fetcher] Finished live fetch. Persisted {success_count} IPO records in database.")
+    
+    # After main sync, enrich subscription data for all IPOs that have NSE symbols
+    enrich_subscription_data()
+    
     return True
+
+
+def enrich_subscription_data():
+    """
+    Batch-fetches subscription multiplier data from NSE detail API for all IPOs
+    in the database that have real NSE symbols and either:
+      - Status is 'Active' (always refresh), or
+      - Status is 'Closed' but subscription data is still 0 (one-time backfill)
+    
+    NSE keeps detail data for recently closed IPOs (within ~30 days of close).
+    After that, the data returns 0.00, so we only attempt backfill once.
+    """
+    import time
+    
+    conn = database.get_db_connection()
+    cur = conn.cursor()
+    
+    # Get IPOs that need subscription data
+    # Active: always refresh | Closed with zero subscription: attempt backfill
+    cur.execute('''
+        SELECT symbol, company_name, status FROM ipos 
+        WHERE symbol NOT LIKE 'IPO%'
+        AND (
+            status = 'Active'
+            OR (status = 'Closed' AND retail_x = 0.0 AND hni_x = 0.0 AND qib_x = 0.0)
+        )
+        ORDER BY CASE status WHEN 'Active' THEN 1 ELSE 2 END
+        LIMIT 25
+    ''')
+    targets = cur.fetchall()
+    
+    if not targets:
+        print("[IPO Subscription] No IPOs need subscription enrichment.")
+        conn.close()
+        return
+    
+    print(f"[IPO Subscription] Enriching subscription data for {len(targets)} IPOs...")
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.nseindia.com/"
+    }
+    session = requests.Session()
+    session.headers.update(headers)
+    
+    try:
+        session.get("https://www.nseindia.com", timeout=10)
+    except Exception:
+        print("[IPO Subscription] Failed to initialize NSE session.")
+        conn.close()
+        return
+    
+    enriched = 0
+    for row in targets:
+        symbol = row["symbol"]
+        name = row["company_name"]
+        status = row["status"]
+        
+        try:
+            time.sleep(0.5)  # Rate limit: 2 requests/sec
+            r = session.get(f"https://www.nseindia.com/api/ipo-detail?symbol={symbol}", timeout=10)
+            if r.status_code != 200:
+                continue
+                
+            detail = r.json()
+            bid_details = detail.get("bidDetails", [])
+            
+            retail_x = 0.0
+            hni_x = 0.0
+            qib_x = 0.0
+            total_x = 0.0
+            
+            for bid in bid_details:
+                cat = bid.get("category", "")
+                try:
+                    multiplier = float(bid.get("noOfTime", "0.0") or "0.0")
+                except (ValueError, TypeError):
+                    multiplier = 0.0
+                
+                if "Qualified Institutional Buyers" in cat:
+                    qib_x = multiplier
+                elif cat == "Non Institutional Investors":
+                    hni_x = multiplier
+                elif "Retail Individual Investors" in cat:
+                    retail_x = multiplier
+            
+            # Get total from demand graph
+            graph_all = detail.get("demandGraphALL", {})
+            if graph_all:
+                try:
+                    total_x = float(graph_all.get("noOfTimesIssueSubscribed", "0.0") or "0.0")
+                except (ValueError, TypeError):
+                    total_x = 0.0
+            
+            # Calculate total if not available from graph
+            if total_x == 0.0 and (retail_x > 0 or hni_x > 0 or qib_x > 0):
+                total_x = round((retail_x * 0.35) + (hni_x * 0.15) + (qib_x * 0.50), 2)
+            
+            # Only update if we got meaningful data
+            if retail_x > 0 or hni_x > 0 or qib_x > 0 or total_x > 0:
+                cur.execute('''
+                    UPDATE ipos SET
+                        retail_x = ?, hni_x = ?, qib_x = ?, total_x = ?,
+                        updated_at = ?
+                    WHERE symbol = ?
+                ''', (
+                    round(retail_x, 2), round(hni_x, 2), round(qib_x, 2), round(total_x, 2),
+                    datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    symbol
+                ))
+                enriched += 1
+                print(f"  [+] {name}: Retail={retail_x:.2f}x, HNI={hni_x:.2f}x, QIB={qib_x:.2f}x, Total={total_x:.2f}x")
+                
+        except Exception as e:
+            print(f"  [!] Error fetching subscription for {symbol}: {e}")
+    
+    conn.commit()
+    conn.close()
+    print(f"[IPO Subscription] Enrichment complete. Updated {enriched}/{len(targets)} IPOs.")

@@ -1193,6 +1193,46 @@
                     }
                 }
 
+                // Apply custom sorting per tab
+                if (this.activeFilter === 'Closed') {
+                    filtered.sort((a, b) => {
+                        const subA = parseFloat(a.total_x) || 0;
+                        const subB = parseFloat(b.total_x) || 0;
+                        if (subB !== subA) return subB - subA; // Most subscribed first
+                        const dateA = a.issue_end_date && a.issue_end_date !== 'N/A' ? a.issue_end_date : '0000-00-00';
+                        const dateB = b.issue_end_date && b.issue_end_date !== 'N/A' ? b.issue_end_date : '0000-00-00';
+                        return dateB.localeCompare(dateA); // Latest date first
+                    });
+                } else if (this.activeFilter === 'Upcoming') {
+                    filtered.sort((a, b) => {
+                        const dateA = a.issue_start_date && a.issue_start_date !== 'N/A' ? a.issue_start_date : '9999-99-99';
+                        const dateB = b.issue_start_date && b.issue_start_date !== 'N/A' ? b.issue_start_date : '9999-99-99';
+                        return dateA.localeCompare(dateB); // Soonest start date first
+                    });
+                } else if (this.activeFilter === 'Active') {
+                    filtered.sort((a, b) => {
+                        const subA = parseFloat(a.total_x) || 0;
+                        const subB = parseFloat(b.total_x) || 0;
+                        if (subB !== subA) return subB - subA;
+                        const dateA = a.issue_end_date && a.issue_end_date !== 'N/A' ? a.issue_end_date : '9999-99-99';
+                        const dateB = b.issue_end_date && b.issue_end_date !== 'N/A' ? b.issue_end_date : '9999-99-99';
+                        return dateA.localeCompare(dateB);
+                    });
+                } else {
+                    const statusRank = { 'Active': 1, 'Upcoming': 2, 'Closed': 3 };
+                    filtered.sort((a, b) => {
+                        const rankA = statusRank[a.status] || 4;
+                        const rankB = statusRank[b.status] || 4;
+                        if (rankA !== rankB) return rankA - rankB;
+                        const subA = parseFloat(a.total_x) || 0;
+                        const subB = parseFloat(b.total_x) || 0;
+                        if (subB !== subA) return subB - subA;
+                        const dateA = a.issue_end_date && a.issue_end_date !== 'N/A' ? a.issue_end_date : '0000-00-00';
+                        const dateB = b.issue_end_date && b.issue_end_date !== 'N/A' ? b.issue_end_date : '0000-00-00';
+                        return dateB.localeCompare(dateA);
+                    });
+                }
+
                 if (filtered.length === 0) {
                     content.style.display = "none";
                     empty.style.display = "block";
@@ -1225,18 +1265,34 @@
                     let subHtml = "";
                     if (ipo.status === 'Active' || ipo.status === 'Closed') {
                         const totalDemand = parseFloat(ipo.total_x) || 0;
-                        subHtml = `
-                            <div class="ipo-subscriptions">
-                                <div class="ipo-sub-title">Subscription Demand (Multipliers)</div>
-                                ${this.renderProgressBar("Retail", ipo.retail_x, 15)}
-                                ${this.renderProgressBar("HNI (NII)", ipo.hni_x, 30)}
-                                ${this.renderProgressBar("Institutional (QIB)", ipo.qib_x, 50)}
-                                <div style="border-top:1px dashed rgba(255,255,255,0.05); padding-top:0.4rem; display:flex; justify-content:space-between; align-items:center;">
-                                    <span style="font-size:0.6rem; color:var(--text-secondary);">Total Demand</span>
-                                    <span class="ratio-tag ${totalDemand >= 1.0 ? 'ratio-high' : 'ratio-mid'}" style="font-size:0.65rem;">${totalDemand.toFixed(2)}x</span>
+                        const hasSubData = (parseFloat(ipo.retail_x) > 0 || parseFloat(ipo.hni_x) > 0 || parseFloat(ipo.qib_x) > 0 || totalDemand > 0);
+                        
+                        if (hasSubData) {
+                            subHtml = `
+                                <div class="ipo-subscriptions">
+                                    <div class="ipo-sub-title">Subscription Demand (Multipliers)</div>
+                                    ${this.renderProgressBar("Retail", ipo.retail_x, 15)}
+                                    ${this.renderProgressBar("HNI (NII)", ipo.hni_x, 30)}
+                                    ${this.renderProgressBar("Institutional (QIB)", ipo.qib_x, 50)}
+                                    <div style="border-top:1px dashed rgba(255,255,255,0.05); padding-top:0.4rem; display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="font-size:0.6rem; color:var(--text-secondary);">Total Demand</span>
+                                        <span class="ratio-tag ${totalDemand >= 1.0 ? 'ratio-high' : 'ratio-mid'}" style="font-size:0.65rem;">${totalDemand.toFixed(2)}x</span>
+                                    </div>
                                 </div>
-                            </div>
-                        `;
+                            `;
+                        } else {
+                            subHtml = `
+                                <div class="ipo-subscriptions" style="text-align:center; padding:1rem; background:rgba(255,255,255,0.01); border-radius:8px;">
+                                    <div style="font-size:0.65rem; color:var(--text-secondary); opacity:0.7;">
+                                        <i style="font-size:0.8rem; margin-bottom:0.3rem; display:block;">📊</i>
+                                        Subscription data not yet available
+                                    </div>
+                                    <div style="font-size:0.55rem; color:var(--text-secondary); opacity:0.5; margin-top:0.3rem;">
+                                        Click Sync to fetch latest data from NSE
+                                    </div>
+                                </div>
+                            `;
+                        }
                     } else {
                         subHtml = `
                             <div class="ipo-subscriptions" style="text-align:center; padding:1.2rem; background:rgba(255,255,255,0.01); border-radius:8px;">

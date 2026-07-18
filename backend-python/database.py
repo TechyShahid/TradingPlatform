@@ -119,7 +119,7 @@ def get_db_connection():
         return PostgreSQLConnectionWrapper(conn)
     else:
         os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=30.0)
         conn.row_factory = sqlite3.Row
         
         # Register a safe case-insensitive REGEXP function for regex symbol searching

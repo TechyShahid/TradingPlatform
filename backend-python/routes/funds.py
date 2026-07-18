@@ -73,15 +73,6 @@ def list_funds():
     cursor.execute(f"SELECT COUNT(*) {query}", params)
     total_count = cursor.fetchone()[0]
     
-    if total_count == 0 and category == 'All' and not search_query:
-        try:
-            from seeder_funds import seed_fallback_funds
-            seed_fallback_funds()
-            cursor.execute(f"SELECT COUNT(*) {query}", params)
-            total_count = cursor.fetchone()[0]
-        except Exception as fb_err:
-            print(f"[Funds Route] Fallback trigger notice: {fb_err}")
-    
     if top10:
         query += " AND return_1y != 0.0 ORDER BY return_1y DESC"
         page = 1

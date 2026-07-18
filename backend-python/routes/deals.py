@@ -116,6 +116,16 @@ def get_consistent_compounders():
         cur = conn.cursor()
         cur.execute("SELECT * FROM consistent_compounders ORDER BY avg_3yr_growth_pct DESC")
         rows = cur.fetchall()
+        
+        if not rows:
+            try:
+                from services.seeders import seed_fallback_deals_and_compounders
+                seed_fallback_deals_and_compounders()
+                cur.execute("SELECT * FROM consistent_compounders ORDER BY avg_3yr_growth_pct DESC")
+                rows = cur.fetchall()
+            except Exception as fb_err:
+                print(f"[Deals Route] Compounders fallback trigger notice: {fb_err}")
+                
         conn.close()
         return jsonify(rows)
     except Exception as e:

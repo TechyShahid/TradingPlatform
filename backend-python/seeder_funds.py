@@ -189,7 +189,8 @@ def seed_data():
     # Parse schemes from AMFI portal
     schemes = parse_amfi_nav_file()
     if not schemes:
-        print("[Database Seeder] No schemes parsed, aborting mutual fund update.")
+        print("[Database Seeder] AMFI download failed or returned empty. Seeding flagship mutual fund fallbacks...")
+        seed_fallback_funds()
         conn.close()
         return
         
@@ -324,7 +325,69 @@ def seed_data():
     conn.close()
     print("[Database Seeder] Seeding complete! Database populated successfully.")
 
+def seed_fallback_funds():
+    """Seeds flagship mutual funds when AMFI online file is unreachable."""
+    conn = database.get_db_connection()
+    cursor = conn.cursor()
+    
+    fallback_schemes = [
+        {"amfi_code": "120828", "scheme_name": "Quant Small Cap Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Small Cap", "nav": 245.50, "return_1y": 42.5, "return_3y": 34.2, "return_5y": 38.1},
+        {"amfi_code": "118989", "scheme_name": "Parag Parikh Flexi Cap Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Flexi Cap", "nav": 78.40, "return_1y": 28.4, "return_3y": 21.6, "return_5y": 24.8},
+        {"amfi_code": "118778", "scheme_name": "Mirae Asset Large Cap Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Large Cap", "nav": 112.30, "return_1y": 22.1, "return_3y": 16.8, "return_5y": 18.2},
+        {"amfi_code": "122639", "scheme_name": "HDFC Top 100 Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Large Cap", "nav": 945.10, "return_1y": 24.8, "return_3y": 18.5, "return_5y": 17.9},
+        {"amfi_code": "120823", "scheme_name": "ICICI Prudential Bluechip Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Large Cap", "nav": 108.60, "return_1y": 25.3, "return_3y": 19.2, "return_5y": 19.5},
+        {"amfi_code": "119609", "scheme_name": "SBI Small Cap Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Small Cap", "nav": 168.90, "return_1y": 31.2, "return_3y": 24.5, "return_5y": 27.4},
+        {"amfi_code": "120197", "scheme_name": "Nippon India Small Cap Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Small Cap", "nav": 154.20, "return_1y": 44.8, "return_3y": 32.1, "return_5y": 35.6},
+        {"amfi_code": "120237", "scheme_name": "Axis Bluechip Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Large Cap", "nav": 56.40, "return_1y": 18.6, "return_3y": 13.2, "return_5y": 15.4},
+        {"amfi_code": "119771", "scheme_name": "Kotak Arbitrage Fund - Direct Plan - Growth", "category": "Hybrid", "sub_category": "Arbitrage", "nav": 34.80, "return_1y": 7.8, "return_3y": 6.9, "return_5y": 6.5},
+        {"amfi_code": "120716", "scheme_name": "UTI Nifty 50 Index Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Index Fund", "nav": 172.50, "return_1y": 23.4, "return_3y": 17.1, "return_5y": 17.8},
+        {"amfi_code": "119062", "scheme_name": "DSP Midcap Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Mid Cap", "nav": 128.30, "return_1y": 33.6, "return_3y": 22.4, "return_5y": 22.8},
+        {"amfi_code": "118825", "scheme_name": "Canara Robeco Emerging Equities - Direct Plan - Growth", "category": "Equity", "sub_category": "Large & Mid Cap", "nav": 215.80, "return_1y": 26.5, "return_3y": 18.9, "return_5y": 20.3},
+        {"amfi_code": "120146", "scheme_name": "Motilal Oswal Midcap Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Mid Cap", "nav": 92.40, "return_1y": 52.4, "return_3y": 38.6, "return_5y": 31.5},
+        {"amfi_code": "120542", "scheme_name": "Tata Digital India Fund - Direct Plan - Growth", "category": "Equity", "sub_category": "Sectoral/Thematic", "nav": 48.70, "return_1y": 29.8, "return_3y": 19.4, "return_5y": 25.2},
+        {"amfi_code": "120018", "scheme_name": "Edelweiss Balanced Advantage Fund - Direct Plan - Growth", "category": "Hybrid", "sub_category": "Dynamic Asset Allocation", "nav": 48.20, "return_1y": 21.5, "return_3y": 15.8, "return_5y": 16.4},
+    ]
+    
+    today_str = datetime.date.today().strftime('%Y-%m-%d')
+    start_date = datetime.date.today() - datetime.timedelta(days=730)
+    end_date = datetime.date.today()
+
+    for s in fallback_schemes:
+        code = s["amfi_code"]
+        cursor.execute('''
+            INSERT OR REPLACE INTO funds (
+                amfi_code, scheme_name, category, sub_category, risk_rating,
+                expense_ratio, exit_load, fund_manager, aum, star_rating, launch_date,
+                return_1y, return_3y, return_5y
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            code, s["scheme_name"], s["category"], s["sub_category"], "Very High",
+            0.75, "1% if redeemed within 1 year", "Rajeev Thakkar", 25000.0, 5, "2013-01-01",
+            s["return_1y"], s["return_3y"], s["return_5y"]
+        ))
+        
+        cursor.execute('''
+            INSERT OR REPLACE INTO fund_nav_history (amfi_code, nav_date, nav_price)
+            VALUES (?, ?, ?)
+        ''', (code, today_str, s["nav"]))
+        
+        # Add generated NAV history for historical chart comparison
+        nav_hist = generate_nav_history(s["nav"] * 0.6, 0.15, 0.15, start_date, end_date)
+        cursor.executemany('''
+            INSERT OR REPLACE INTO fund_nav_history (amfi_code, nav_date, nav_price)
+            VALUES (?, ?, ?)
+        ''', [(code, d, p) for d, p in nav_hist])
+        
+        # Add sample portfolio holdings
+        holdings = generate_random_portfolio(s["category"])
+        cursor.executemany('''
+            INSERT OR REPLACE INTO fund_portfolio (amfi_code, asset_name, sector, allocation_pct)
+            VALUES (?, ?, ?, ?)
+        ''', [(code, asset, sec, wt) for asset, sec, wt in holdings])
+        
+    conn.commit()
+    conn.close()
+    print(f"[Database Seeder] Seeded {len(fallback_schemes)} fallback mutual fund schemes.")
+
 if __name__ == '__main__':
-    # Force reseeding to clear and reload with return columns populated
-    # We temporarily bypass the count check by overriding it
     seed_data()

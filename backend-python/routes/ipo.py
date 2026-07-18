@@ -53,6 +53,17 @@ def list_ipos():
         import database, re
         conn = database.get_db_connection()
         cur = conn.cursor()
+
+        # Check if subscription figures are missing (e.g. on fresh Render deployment)
+        cur.execute("SELECT COUNT(*) FROM ipos WHERE total_x > 0.0")
+        has_sub_data = cur.fetchone()[0]
+        if has_sub_data == 0:
+            try:
+                from services.ipo_service import apply_subscription_fallbacks
+                apply_subscription_fallbacks()
+            except Exception as fb_err:
+                print(f"[IPO Route] Fallback trigger warning: {fb_err}")
+
         cur.execute("SELECT * FROM ipos ORDER BY CASE status WHEN 'Active' THEN 1 WHEN 'Upcoming' THEN 2 WHEN 'Closed' THEN 3 ELSE 4 END, issue_start_date DESC")
         rows = cur.fetchall()
         

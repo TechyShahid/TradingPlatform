@@ -8,28 +8,74 @@ class PostgreSQLCursorWrapper:
     def __init__(self, cursor):
         self.cursor = cursor
 
+    def _transform_query(self, query):
+        if not query:
+            return query
+        import re
+        
+        # Replace ? parameter placeholder with %s
+        transformed = query.replace('?', '%s')
+        
+        # Replace AUTOINCREMENT
+        if "AUTOINCREMENT" in transformed:
+            transformed = transformed.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+            
+        # Replace REGEXP operator with PostgreSQL case-insensitive regex operator ~*
+        transformed = re.sub(r'(\w+)\s+REGEXP\s+%s', r'\1 ~* %s', transformed, flags=re.IGNORECASE)
+        
+        # Translate INSERT OR REPLACE INTO for PostgreSQL compatibility
+        if "INSERT OR REPLACE INTO" in transformed.upper():
+            if "fund_nav_history" in transformed:
+                transformed = transformed.replace("INSERT OR REPLACE INTO fund_nav_history", "INSERT INTO fund_nav_history")
+                if "ON CONFLICT" not in transformed.upper():
+                    transformed += " ON CONFLICT (amfi_code, nav_date) DO UPDATE SET nav_price = EXCLUDED.nav_price"
+            elif "fund_portfolio" in transformed:
+                transformed = transformed.replace("INSERT OR REPLACE INTO fund_portfolio", "INSERT INTO fund_portfolio")
+                if "ON CONFLICT" not in transformed.upper():
+                    transformed += " ON CONFLICT (amfi_code, asset_name) DO UPDATE SET sector = EXCLUDED.sector, allocation_pct = EXCLUDED.allocation_pct"
+            elif "funds" in transformed:
+                transformed = transformed.replace("INSERT OR REPLACE INTO funds", "INSERT INTO funds")
+                if "ON CONFLICT" not in transformed.upper():
+                    transformed += " ON CONFLICT (amfi_code) DO UPDATE SET scheme_name = EXCLUDED.scheme_name, category = EXCLUDED.category, sub_category = EXCLUDED.sub_category, risk_rating = EXCLUDED.risk_rating, expense_ratio = EXCLUDED.expense_ratio, exit_load = EXCLUDED.exit_load, fund_manager = EXCLUDED.fund_manager, aum = EXCLUDED.aum, star_rating = EXCLUDED.star_rating, launch_date = EXCLUDED.launch_date"
+            elif "metadata" in transformed:
+                transformed = transformed.replace("INSERT OR REPLACE INTO metadata", "INSERT INTO metadata")
+                if "ON CONFLICT" not in transformed.upper():
+                    transformed += " ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
+            else:
+                transformed = transformed.replace("INSERT OR REPLACE INTO", "INSERT INTO")
+                if "ON CONFLICT" not in transformed.upper():
+                    transformed += " ON CONFLICT DO NOTHING"
+                
+        # Translate INSERT OR IGNORE INTO
+        if "INSERT OR IGNORE INTO" in transformed.upper():
+            transformed = transformed.replace("INSERT OR IGNORE INTO", "INSERT INTO")
+            if "ON CONFLICT" not in transformed.upper():
+                transformed += " ON CONFLICT DO NOTHING"
+                
+        return transformed
+
     def execute(self, query, params=None):
+        transformed = self._transform_query(query)
         if params is not None:
-            query = query.replace('?', '%s')
-        if "AUTOINCREMENT" in query:
-            query = query.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
-        self.cursor.execute(query, params)
+            self.cursor.execute(transformed, params)
+        else:
+            self.cursor.execute(transformed)
+
+    def executemany(self, query, params_list):
+        transformed = self._transform_query(query)
+        self.cursor.executemany(transformed, params_list)
 
     def fetchall(self):
         rows = self.cursor.fetchall()
-        if rows and hasattr(rows[0], 'keys'):
-            return [dict(r) for r in rows]
-        return rows
+        if rows:
+            return [dict(r) if hasattr(r, 'keys') or isinstance(r, dict) else r for r in rows]
+        return []
 
     def fetchone(self):
         row = self.cursor.fetchone()
-        if row and hasattr(row, 'keys'):
-            return dict(row)
-        return row
-
-    def executemany(self, query, params_list):
-        query = query.replace('?', '%s')
-        self.cursor.executemany(query, params_list)
+        if row:
+            return dict(row) if hasattr(row, 'keys') or isinstance(row, dict) else row
+        return None
 
     @property
     def rowcount(self):
@@ -38,6 +84,7 @@ class PostgreSQLCursorWrapper:
     @property
     def description(self):
         return self.cursor.description
+
 
 class PostgreSQLConnectionWrapper:
     def __init__(self, conn):
@@ -54,9 +101,7 @@ class PostgreSQLConnectionWrapper:
 
     def cursor(self):
         from psycopg2.extras import RealDictCursor
-        if self._row_factory is not None:
-            return PostgreSQLCursorWrapper(self.conn.cursor(cursor_factory=RealDictCursor))
-        return PostgreSQLCursorWrapper(self.conn.cursor())
+        return PostgreSQLCursorWrapper(self.conn.cursor(cursor_factory=RealDictCursor))
 
     def commit(self):
         self.conn.commit()
@@ -172,7 +217,7 @@ def init_db():
     # Run migration to add region column to stock_news if it existed without it
     try:
         cursor.execute("ALTER TABLE stock_news ADD COLUMN region TEXT DEFAULT 'India'")
-    except sqlite3.OperationalError:
+    except Exception:
         pass # Column already exists
     
     # Create users table
@@ -189,7 +234,7 @@ def init_db():
     # Run migration to add entitlements column if table existed without it
     try:
         cursor.execute('ALTER TABLE users ADD COLUMN entitlements TEXT')
-    except sqlite3.OperationalError:
+    except Exception:
         pass # Column already exists
         
     # Create ipos table

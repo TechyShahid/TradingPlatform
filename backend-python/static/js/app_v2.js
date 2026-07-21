@@ -2326,6 +2326,11 @@ window.handleRAGSubmitDrawer = async function(event) {
             const tokenTag = data.cached ? "0 Tokens (Cached ⚡)" : `${data.estimated_tokens_used || 150} Tokens`;
             ansContent += `<div style="font-size: 0.6rem; color: #34d399; margin-top: 0.5rem; font-weight: 600;">⚡ ${tokenTag}</div>`;
             aiMsgDiv.querySelector("div:last-child").innerHTML = ansContent;
+
+            if (data.answer) {
+                const textToSpeak = typeof data.answer === 'string' ? data.answer : (data.answer.answer || JSON.stringify(data.answer));
+                speakText(textToSpeak);
+            }
         }
     } catch (err) {
         aiMsgDiv.querySelector("div:last-child").innerHTML = `<span style="color: #ef4444;">Network error.</span>`;
@@ -2493,3 +2498,116 @@ function escapeHTML(str) {
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
     );
 }
+
+// --- 9. Speech-to-Text & Text-to-Speech Voice System ---
+let recognition = null;
+let isListening = false;
+let ttsEnabled = false;
+
+window.toggleSpeechToText = function() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+        alert("Speech Recognition is not supported on this browser. Please try Google Chrome, Microsoft Edge, or Safari.");
+        return;
+    }
+
+    const micBtn = document.getElementById("rag-mic-btn");
+    const inputField = document.getElementById("rag-drawer-input");
+
+    if (isListening) {
+        if (recognition) recognition.stop();
+        stopListeningUI();
+        return;
+    }
+
+    try {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-IN'; // Indian English voice recognition
+
+        recognition.onstart = () => {
+            isListening = true;
+            if (micBtn) {
+                micBtn.style.background = "#ef4444";
+                micBtn.style.borderColor = "#f87171";
+                micBtn.style.boxShadow = "0 0 12px rgba(239, 68, 68, 0.8)";
+                micBtn.innerHTML = "🔴";
+            }
+            if (inputField) {
+                inputField.placeholder = "Listening... Speak now 🎙️";
+            }
+        };
+
+        recognition.onresult = (event) => {
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+            }
+            if (inputField) {
+                inputField.value = transcript;
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech recognition error:", event.error);
+            stopListeningUI();
+            if (event.error === 'not-allowed') {
+                alert("Microphone permission denied. Please allow microphone access in your browser settings to use voice input.");
+            }
+        };
+
+        recognition.onend = () => {
+            stopListeningUI();
+            if (inputField && inputField.value.trim().length > 1) {
+                const sendBtn = document.getElementById("rag-drawer-send-btn");
+                if (sendBtn) sendBtn.click();
+            }
+        };
+
+        recognition.start();
+    } catch (err) {
+        console.error("Error starting speech recognition:", err);
+        stopListeningUI();
+    }
+};
+
+function stopListeningUI() {
+    isListening = false;
+    const micBtn = document.getElementById("rag-mic-btn");
+    const inputField = document.getElementById("rag-drawer-input");
+    if (micBtn) {
+        micBtn.style.background = "rgba(255,255,255,0.1)";
+        micBtn.style.borderColor = "rgba(255,255,255,0.2)";
+        micBtn.style.boxShadow = "none";
+        micBtn.innerHTML = "🎙️";
+    }
+    if (inputField) {
+        inputField.placeholder = "Ask Mota Bhai or speak...";
+    }
+}
+
+window.toggleTextToSpeech = function() {
+    ttsEnabled = !ttsEnabled;
+    const ttsBtn = document.getElementById("rag-tts-btn");
+    if (ttsBtn) {
+        ttsBtn.innerHTML = ttsEnabled ? "🔊" : "🔇";
+        ttsBtn.style.background = ttsEnabled ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.1)";
+        ttsBtn.style.borderColor = ttsEnabled ? "#818cf8" : "rgba(255,255,255,0.2)";
+        ttsBtn.title = ttsEnabled ? "Mota Bhai Voice: ON" : "Toggle Mota Bhai Voice Audio";
+    }
+    if (!ttsEnabled && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+};
+
+window.speakText = function(text) {
+    if (!ttsEnabled || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const cleanText = text.replace(/<[^>]*>/g, '').replace(/[\*\_]/g, '');
+    const utterance = new SpeechSynthesisUtterance(cleanText.substring(0, 300));
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    window.speechSynthesis.speak(utterance);
+};

@@ -43,27 +43,32 @@ def add_header(response):
     return response
 
 
-if __name__ == '__main__':
-    # Ensure database is initialized with all tables
-    database.init_db()
+# --- Ensure Database & Background Tasks Initialize on Boot (WSGI & Gunicorn compatible) ---
+database.init_db()
 
-    # Ensure templates folder exists
-    if not os.path.exists('templates'):
-        os.makedirs('templates')
-        
-    # Start background tasks preventing double initialization by Flask reloader
-    if not os.environ.get('WERKZEUG_RUN_MAIN') and app.debug:
-        print("[Background Tasks] Waiting for Flask child process before spinning threads...")
-    else:
+_background_workers_started = False
+def start_background_workers():
+    global _background_workers_started
+    if _background_workers_started:
+        return
+    _background_workers_started = True
+    
+    if os.environ.get('WERKZEUG_RUN_MAIN') or not app.debug:
         from services.seeders import background_news_crawler_task, background_seeding_task
         
-        # Start news crawler
+        print("[App Startup] Spinning background seeder & news crawler threads...")
         crawler_thread = threading.Thread(target=background_news_crawler_task, daemon=True)
         crawler_thread.start()
 
-        # Start database seeder
         seeder_thread = threading.Thread(target=background_seeding_task, daemon=True)
         seeder_thread.start()
+
+start_background_workers()
+
+
+if __name__ == '__main__':
+    if not os.path.exists('templates'):
+        os.makedirs('templates')
         
     port = int(os.environ.get('PORT', 8083))
     is_render = os.environ.get('RENDER') is not None

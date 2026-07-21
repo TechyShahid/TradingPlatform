@@ -216,9 +216,17 @@ def get_heuristic_predictions():
 
     return candidates[:10]
 
+_predictions_cache = {"data": None, "timestamp": 0}
+
 def predict_growth_stocks():
-    """Predicts top 10 growth stocks using Groq (Llama 3), Gemini API, Ollama, or heuristic fallback"""
-    import os
+    """Predicts top 10 growth stocks using Groq (Llama 3), Gemini API, Ollama, or heuristic fallback with 1-hour cache."""
+    import os, time
+    global _predictions_cache
+
+    now = time.time()
+    if _predictions_cache["data"] and (now - _predictions_cache["timestamp"] < 3600):
+        return _predictions_cache["data"]
+
     market_data = get_market_data_summary()
 
     prompt = f"""You are an expert quantitative financial analyst specializing in the Indian Stock Market (NSE).
@@ -319,11 +327,16 @@ Required format:
                 
         if isinstance(predictions, dict):
             predictions = [predictions]
+        _predictions_cache["data"] = predictions
+        _predictions_cache["timestamp"] = time.time()
         return predictions
     except Exception as e:
         print(f"[AI Analyzer] Ollama error: {e}")
         # 4. Fall back to high-quality heuristic calculator
-        return get_heuristic_predictions()
+        fallback = get_heuristic_predictions()
+        _predictions_cache["data"] = fallback
+        _predictions_cache["timestamp"] = time.time()
+        return fallback
 
 if __name__ == '__main__':
     print("Testing AI Analyzer...")

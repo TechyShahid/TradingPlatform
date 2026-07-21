@@ -831,10 +831,13 @@
                 <span style="font-size: 1.4rem;">👳‍♂️</span>
                 <div>
                     <h3 style="font-size: 0.95rem; font-weight: 600; color: #fff; margin: 0;">Mota Bhai</h3>
-                    <span style="font-size: 0.65rem; color: #34d399; font-weight: 500;">⚡ Token-Compressed RAG Assistant</span>
+                    <span style="font-size: 0.65rem; color: #34d399; font-weight: 500;">⚡ Voice & RAG AI Assistant</span>
                 </div>
             </div>
-            <button onclick="toggleRAGDrawer()" style="background: rgba(255,255,255,0.1); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center;">✕</button>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <button type="button" id="rag-tts-btn" onclick="toggleTextToSpeech()" title="Toggle Mota Bhai Voice Audio" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center;">🔇</button>
+                <button onclick="toggleRAGDrawer()" style="background: rgba(255,255,255,0.1); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center;">✕</button>
+            </div>
         </div>
 
         <!-- Drawer Body (Chat History) -->
@@ -843,7 +846,7 @@
                 <span style="font-size: 1.2rem;">👳‍♂️</span>
                 <div style="font-size: 0.75rem; color: #cbd5e1;">
                     <strong style="color: #a5b4fc; display: block; margin-bottom: 0.2rem;">Kem Cho! I'm Mota Bhai.</strong>
-                    Ask me anything about stocks, IPOs, mutual funds, or bulk deals! Context is compressed automatically.
+                    Ask me anything or tap the 🎙️ mic button to speak!
                 </div>
             </div>
         </div>
@@ -857,8 +860,9 @@
         </div>
 
         <!-- Drawer Input Bar -->
-        <form onsubmit="handleRAGSubmitDrawer(event)" style="padding: 0.75rem; background: #0f172a; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 0.5rem;">
-            <input type="text" id="rag-drawer-input" placeholder="Ask Mota Bhai..." style="flex: 1; padding: 0.6rem 0.85rem; font-size: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15);" required>
+        <form onsubmit="handleRAGSubmitDrawer(event)" style="padding: 0.75rem; background: #0f172a; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 0.5rem; align-items: center;">
+            <input type="text" id="rag-drawer-input" placeholder="Ask Mota Bhai or speak..." style="flex: 1; padding: 0.6rem 0.85rem; font-size: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15);" required>
+            <button type="button" id="rag-mic-btn" onclick="toggleSpeechToText()" title="Speech to Text (Voice Input)" style="padding: 0.6rem 0.75rem; font-size: 0.9rem; border-radius: 8px; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">🎙️</button>
             <button type="submit" id="rag-drawer-send-btn" style="padding: 0.6rem 1rem; font-size: 0.75rem; font-weight: 600; border-radius: 8px; background: #6366f1; color: #fff; border: none; cursor: pointer;">Send ➔</button>
         </form>
     </div>

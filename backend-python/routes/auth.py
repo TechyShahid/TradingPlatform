@@ -208,6 +208,7 @@ def check_admin_entitlement():
 @auth_bp.route('/news')
 @auth_bp.route('/ipo')
 @auth_bp.route('/funds')
+@auth_bp.route('/ai-assistant')
 def index():
     return render_template('index.html')
 

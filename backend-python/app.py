@@ -22,6 +22,7 @@ from routes.deals import deals_bp
 from routes.news import news_bp
 from routes.ipo import ipo_bp
 from routes.funds import funds_bp
+from routes.ai_rag import ai_rag_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(admin_bp)
@@ -30,6 +31,7 @@ app.register_blueprint(deals_bp)
 app.register_blueprint(news_bp)
 app.register_blueprint(ipo_bp)
 app.register_blueprint(funds_bp)
+app.register_blueprint(ai_rag_bp)
 
 
 # --- Disable Caching in Development ---

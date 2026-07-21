@@ -77,6 +77,8 @@
                 } else if (viewName === 'funds') {
                     subtitle.innerText = 'Explore and rank top-performing Indian Mutual Funds';
                     FundsController.init();
+                } else if (viewName === 'ai-assistant') {
+                    subtitle.innerText = 'Token-Efficient RAG AI Copilot Assistant';
                 }
             }
         };
@@ -2232,3 +2234,234 @@
         document.addEventListener("DOMContentLoaded", () => {
             Router.init();
         });
+
+// --- 9. RAG AI Copilot Controller ---
+window.toggleRAGDrawer = function() {
+    const drawer = document.getElementById("rag-floating-drawer");
+    if (drawer) {
+        if (drawer.style.display === "none" || !drawer.style.display) {
+            drawer.style.display = "flex";
+        } else {
+            drawer.style.display = "none";
+        }
+    }
+};
+
+window.sendRAGQueryDrawer = function(text) {
+    const input = document.getElementById("rag-drawer-input");
+    if (input) {
+        input.value = text;
+        const form = input.closest("form");
+        if (form) {
+            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
+    }
+};
+
+window.handleRAGSubmitDrawer = async function(event) {
+    event.preventDefault();
+    const input = document.getElementById("rag-drawer-input");
+    const sendBtn = document.getElementById("rag-drawer-send-btn");
+    const chatHistory = document.getElementById("rag-drawer-chat-history");
+
+    const query = input.value.trim();
+    if (!query) return;
+
+    // Append User Message
+    const userMsgDiv = document.createElement("div");
+    userMsgDiv.style.cssText = "display: flex; gap: 0.5rem; justify-content: flex-end;";
+    userMsgDiv.innerHTML = `
+        <div style="background: #4f46e5; color: #fff; padding: 0.6rem 0.85rem; border-radius: 10px; font-size: 0.75rem; max-width: 85%;">
+            ${escapeHTML(query)}
+        </div>
+    `;
+    chatHistory.appendChild(userMsgDiv);
+    input.value = "";
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = "...";
+
+    const aiMsgDiv = document.createElement("div");
+    aiMsgDiv.style.cssText = "display: flex; gap: 0.5rem; background: rgba(99,102,241,0.1); padding: 0.6rem; border-radius: 10px; border: 1px solid rgba(99,102,241,0.2);";
+    aiMsgDiv.innerHTML = `
+        <span style="font-size: 1rem;">👳‍♂️</span>
+        <div style="font-size: 0.75rem; color: #94a3b8; font-style: italic;">Mota Bhai is analyzing RAG context...</div>
+    `;
+    chatHistory.appendChild(aiMsgDiv);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+
+    try {
+        const response = await fetch('/api/ai/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+        });
+        const data = await response.json();
+
+        if (data.error) {
+            aiMsgDiv.querySelector("div:last-child").innerHTML = `<span style="color: #ef4444;">Error: ${escapeHTML(data.error)}</span>`;
+        } else {
+            let ansContent = formatRAGAnswerToHTML(data.answer);
+            const tokenTag = data.cached ? "0 Tokens (Cached ⚡)" : `${data.estimated_tokens_used || 150} Tokens`;
+            ansContent += `<div style="font-size: 0.6rem; color: #34d399; margin-top: 0.5rem; font-weight: 600;">⚡ ${tokenTag}</div>`;
+            aiMsgDiv.querySelector("div:last-child").innerHTML = ansContent;
+        }
+    } catch (err) {
+        aiMsgDiv.querySelector("div:last-child").innerHTML = `<span style="color: #ef4444;">Network error.</span>`;
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = "Send ➔";
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+};
+
+window.sendRAGQuery = function(queryText) {
+    const input = document.getElementById("rag-input");
+    if (input) {
+        input.value = queryText;
+        const form = document.getElementById("rag-query-form");
+        if (form) {
+            form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
+    }
+};
+
+window.handleRAGSubmit = async function(event) {
+    event.preventDefault();
+    const input = document.getElementById("rag-input");
+    const sendBtn = document.getElementById("rag-send-btn");
+    const chatHistory = document.getElementById("rag-chat-history");
+    const savingsVal = document.getElementById("rag-savings-val");
+
+    const query = input.value.trim();
+    if (!query) return;
+
+    // Append User Message
+    const userMsgDiv = document.createElement("div");
+    userMsgDiv.className = "rag-msg rag-msg-user";
+    userMsgDiv.style.cssText = "display: flex; gap: 0.75rem; justify-content: flex-end; align-items: flex-start;";
+    userMsgDiv.innerHTML = `
+        <div style="background: rgba(99,102,241,0.25); color: #fff; padding: 0.75rem 1rem; border-radius: 12px; border: 1px solid rgba(99,102,241,0.4); max-width: 80%;">
+            <strong>You:</strong> ${escapeHTML(query)}
+        </div>
+        <div style="font-size: 1.2rem;">👤</div>
+    `;
+    chatHistory.appendChild(userMsgDiv);
+    input.value = "";
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+
+    // Loading State
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = "Processing...";
+
+    const aiMsgDiv = document.createElement("div");
+    aiMsgDiv.className = "rag-msg rag-msg-ai";
+    aiMsgDiv.style.cssText = "display: flex; gap: 0.75rem; background: rgba(99,102,241,0.08); padding: 0.85rem; border-radius: 10px; border: 1px solid rgba(99,102,241,0.2);";
+    aiMsgDiv.innerHTML = `
+        <div style="font-size: 1.2rem;">🤖</div>
+        <div style="flex: 1;">
+            <p style="color: var(--text-secondary); font-style: italic;">Retrieving relevant data & compressing context...</p>
+        </div>
+    `;
+    chatHistory.appendChild(aiMsgDiv);
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+
+    try {
+        const response = await fetch('/api/ai/ask', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+        });
+        const data = await response.json();
+
+        if (data.error) {
+            aiMsgDiv.querySelector("div:last-child").innerHTML = `<p style="color: var(--danger);">Error: ${escapeHTML(data.error)}</p>`;
+        } else {
+            let ansContent = formatRAGAnswerToHTML(data.answer);
+            aiMsgDiv.querySelector("div:last-child").innerHTML = ansContent;
+
+            if (data.cached) {
+                savingsVal.innerText = "0 Tokens (Cached ⚡)";
+                savingsVal.style.color = "#34d399";
+            } else {
+                savingsVal.innerText = `${data.estimated_tokens_used || 150} Tokens (Compressed)`;
+                savingsVal.style.color = "#60a5fa";
+            }
+        }
+    } catch (err) {
+        aiMsgDiv.querySelector("div:last-child").innerHTML = `<p style="color: var(--danger);">Network error querying AI Copilot.</p>`;
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = "Send ➔";
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+};
+
+function formatRAGAnswerToHTML(answer) {
+    if (answer === null || answer === undefined) {
+        return '<p style="color:var(--text-secondary);">No response returned.</p>';
+    }
+    
+    if (typeof answer === 'string') {
+        const lines = answer.split('\n').filter(l => l.trim().length > 0);
+        let html = '';
+        lines.forEach(line => {
+            const clean = line.trim();
+            if (clean.startsWith('-') || clean.startsWith('*')) {
+                html += `<li style="margin-bottom:0.25rem;">${escapeHTML(clean.substring(1).trim())}</li>`;
+            } else {
+                html += `<p style="margin-bottom:0.4rem;">${escapeHTML(clean)}</p>`;
+            }
+        });
+        return html;
+    }
+    
+    if (typeof answer === 'object') {
+        let html = '';
+        if (answer.answer) {
+            html += `<p style="font-weight:600; color:#fff; margin-bottom:0.4rem;">${escapeHTML(answer.answer)}</p>`;
+        }
+        if (Array.isArray(answer.details)) {
+            html += '<ul style="margin-top:0.3rem; padding-left:1.2rem; color:#cbd5e1;">';
+            answer.details.forEach(d => {
+                html += `<li style="margin-bottom:0.25rem;">${escapeHTML(String(d))}</li>`;
+            });
+            html += '</ul>';
+        }
+        
+        for (const [key, value] of Object.entries(answer)) {
+            if (key === 'answer' || key === 'details') continue;
+            
+            const title = key.replace(/_/g, ' ').toUpperCase();
+            html += `<div style="margin-top:0.5rem;"><strong style="color:#a5b4fc; font-size:0.8rem;">${escapeHTML(title)}:</strong>`;
+            
+            if (Array.isArray(value)) {
+                html += '<ul style="margin-top:0.25rem; padding-left:1.2rem; color:#e2e8f0;">';
+                value.forEach(item => {
+                    if (typeof item === 'object' && item !== null) {
+                        const itemStr = Object.entries(item).map(([k, v]) => `<span style="color:#94a3b8;">${escapeHTML(k)}:</span> <strong style="color:#fff;">${escapeHTML(String(v))}</strong>`).join(' | ');
+                        html += `<li style="margin-bottom:0.35rem; font-size:0.75rem;">${itemStr}</li>`;
+                    } else {
+                        html += `<li style="margin-bottom:0.25rem;">${escapeHTML(String(item))}</li>`;
+                    }
+                });
+                html += '</ul>';
+            } else if (typeof value === 'object' && value !== null) {
+                html += `<pre style="font-size:0.7rem; color:#cbd5e1; white-space:pre-wrap;">${escapeHTML(JSON.stringify(value, null, 2))}</pre>`;
+            } else {
+                html += `<span style="color:#fff; margin-left:0.4rem;">${escapeHTML(String(value))}</span>`;
+            }
+            html += '</div>';
+        }
+        return html || `<p style="color:#fff;">${escapeHTML(JSON.stringify(answer))}</p>`;
+    }
+    
+    return `<p style="color:#fff;">${escapeHTML(String(answer))}</p>`;
+}
+
+function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+    );
+}

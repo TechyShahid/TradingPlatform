@@ -828,6 +828,51 @@
         </div>
     </div>
 
+    <!-- FLOATING RAG AI CHAT DRAWER (MOTA BHAI) -->
+    <div id="rag-floating-drawer" style="display: none; position: fixed; bottom: 90px; right: 24px; width: 420px; max-width: calc(100vw - 32px); height: 560px; max-height: calc(100vh - 120px); background: #0f172a; border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); z-index: 10000; flex-direction: column; overflow: hidden; backdrop-filter: blur(20px);">
+        <!-- Drawer Header -->
+        <div style="background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span style="font-size: 1.4rem;">👳‍♂️</span>
+                <div>
+                    <h3 style="font-size: 0.95rem; font-weight: 600; color: #fff; margin: 0;">Mota Bhai</h3>
+                    <span style="font-size: 0.65rem; color: #34d399; font-weight: 500;">⚡ Token-Compressed RAG Assistant</span>
+                </div>
+            </div>
+            <button onclick="toggleRAGDrawer()" style="background: rgba(255,255,255,0.1); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center;">✕</button>
+        </div>
+
+        <!-- Drawer Body (Chat History) -->
+        <div id="rag-drawer-chat-history" style="flex: 1; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.85rem; background: rgba(15, 23, 42, 0.95);">
+            <div style="display: flex; gap: 0.6rem; background: rgba(99,102,241,0.1); padding: 0.75rem; border-radius: 10px; border: 1px solid rgba(99,102,241,0.2);">
+                <span style="font-size: 1.2rem;">👳‍♂️</span>
+                <div style="font-size: 0.75rem; color: #cbd5e1;">
+                    <strong style="color: #a5b4fc; display: block; margin-bottom: 0.2rem;">Kem Cho! I'm Mota Bhai.</strong>
+                    Ask me anything about stocks, IPOs, mutual funds, or bulk deals! Context is compressed automatically.
+                </div>
+            </div>
+        </div>
+
+        <!-- Drawer Quick Suggestion Chips -->
+        <div style="padding: 0.5rem 0.75rem; background: rgba(0,0,0,0.2); display: flex; gap: 0.4rem; overflow-x: auto; border-top: 1px solid rgba(255,255,255,0.05);">
+            <button type="button" class="rag-chip-btn" onclick="sendRAGQueryDrawer('Tell me a stock to buy for good short term returns')">📈 Stock Pick</button>
+            <button type="button" class="rag-chip-btn" onclick="sendRAGQueryDrawer('Which active IPO has the highest subscription?')">🔥 Top IPO</button>
+            <button type="button" class="rag-chip-btn" onclick="sendRAGQueryDrawer('What is Parag Parikh Flexi Cap Fund 3Y return?')">💼 Parag Parikh</button>
+            <button type="button" class="rag-chip-btn" onclick="sendRAGQueryDrawer('Recent Reliance bulk deals')">🤝 Reliance Deals</button>
+        </div>
+
+        <!-- Drawer Input Bar -->
+        <form onsubmit="handleRAGSubmitDrawer(event)" style="padding: 0.75rem; background: #0f172a; border-top: 1px solid rgba(255,255,255,0.1); display: flex; gap: 0.5rem;">
+            <input type="text" id="rag-drawer-input" placeholder="Ask Mota Bhai..." style="flex: 1; padding: 0.6rem 0.85rem; font-size: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.15);" required>
+            <button type="submit" id="rag-drawer-send-btn" style="padding: 0.6rem 1rem; font-size: 0.75rem; font-weight: 600; border-radius: 8px; background: #6366f1; color: #fff; border: none; cursor: pointer;">Send ➔</button>
+        </form>
+    </div>
+
+    <!-- FLOATING RAG AI WIDGET BUTTON (MOTA BHAI) -->
+    <button id="floating-ai-btn" onclick="toggleRAGDrawer()" title="Ask Mota Bhai" style="position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #6366f1 0%, #4338ca 100%); color: #fff; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4); cursor: pointer; z-index: 9999; font-size: 1.5rem; display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease;">
+        👳‍♂️
+    </button>
+
     <!-- GLOBAL TOAST NOTIFICATION -->
     <div id="toast" class="toast">
         <span>✅</span>

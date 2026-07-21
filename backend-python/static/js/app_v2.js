@@ -1,17 +1,20 @@
         // --- 1. Router & Tab Switching System ---
         const Router = {
-            routes: ['volume', 'deals', 'growth', 'news', 'ipo', 'funds'],
+            routes: ['deals', 'growth', 'news', 'ipo', 'funds'],
             init() {
-                // Add admin route if user is entitled
-                if (window.ProTradeConfig && window.ProTradeConfig.user && window.ProTradeConfig.user.entitlements.includes('stock_admin')) {
-                    if (!this.routes.includes('admin')) {
-                        this.routes.push('admin');
-                    }
+                const isStockAdmin = window.ProTradeConfig && window.ProTradeConfig.user && window.ProTradeConfig.user.entitlements.includes('stock_admin');
+                
+                if (isStockAdmin) {
+                    if (!this.routes.includes('volume')) this.routes.unshift('volume');
+                    if (!this.routes.includes('admin')) this.routes.push('admin');
+                } else {
+                    this.routes = this.routes.filter(r => r !== 'volume' && r !== 'admin');
                 }
-                // Determine initial view based on URL path
+
+                const defaultRoute = isStockAdmin ? 'volume' : 'deals';
                 let path = window.location.pathname.replace('/', '').toLowerCase();
                 if (!this.routes.includes(path)) {
-                    path = 'volume';
+                    path = defaultRoute;
                 }
                 this.switchView(path, false);
 
@@ -27,7 +30,7 @@
                 window.addEventListener('popstate', () => {
                     let path = window.location.pathname.replace('/', '').toLowerCase();
                     if (!this.routes.includes(path)) {
-                        path = 'volume';
+                        path = defaultRoute;
                     }
                     this.switchView(path, false);
                 });
@@ -1001,30 +1004,42 @@
 
             async fetchUsers() {
                 const tbody = document.getElementById("admin-users-body");
-                tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading user database...</td></tr>';
-                document.getElementById("admin-empty-state").style.display = "none";
+                if (!tbody) return;
+                tbody.innerHTML = '<tr><td colspan="6" class="loading" style="text-align:center; padding:1rem; color:var(--text-secondary);">Loading user database...</td></tr>';
+                const emptyState = document.getElementById("admin-empty-state");
+                if (emptyState) emptyState.style.display = "none";
 
                 try {
                     const response = await fetch("/api/admin/users");
-                    if (!response.ok) throw new Error("Failed to fetch users");
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        throw new Error(errData.error || "Failed to fetch users");
+                    }
                     const data = await response.json();
                     this.usersData = data;
                     this.renderUsers(data);
                 } catch (err) {
                     console.error("Error fetching users list:", err);
-                    tbody.innerHTML = '<tr><td colspan="6" class="loading" style="color:var(--danger);">Error loading users list. Forbidden or server offline.</td></tr>';
+                    tbody.innerHTML = `<tr><td colspan="6" class="loading" style="text-align:center; padding:1rem; color:var(--danger);">Error loading users: ${escapeHTML(err.message)}</td></tr>`;
                 }
+            },
+
+            loadUsers() {
+                return this.fetchUsers();
             },
 
             renderUsers(users) {
                 const tbody = document.getElementById("admin-users-body");
+                if (!tbody) return;
                 tbody.innerHTML = "";
 
+                const emptyState = document.getElementById("admin-empty-state");
                 if (users.length === 0) {
-                    document.getElementById("admin-empty-state").style.display = "block";
+                    if (emptyState) emptyState.style.display = "block";
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:1rem; color:var(--text-secondary);">No registered users found.</td></tr>';
                     return;
                 }
-                document.getElementById("admin-empty-state").style.display = "none";
+                if (emptyState) emptyState.style.display = "none";
 
                 users.forEach(u => {
                     const tr = document.createElement("tr");
@@ -1114,6 +1129,11 @@
                 } catch (err) {
                     alert("Error: " + err.message);
                 }
+            },
+
+            toggleEntitlement(email, role) {
+                const isCurrentlyAdmin = role === 'user';
+                return this.toggleAdmin(email, isCurrentlyAdmin);
             }
         };
 
@@ -2402,6 +2422,19 @@ function formatRAGAnswerToHTML(answer) {
     if (answer === null || answer === undefined) {
         return '<p style="color:var(--text-secondary);">No response returned.</p>';
     }
+
+    function formatValue(val) {
+        if (val === null || val === undefined) return '';
+        if (typeof val === 'object') {
+            if (Array.isArray(val)) {
+                return val.map(formatValue).join(', ');
+            }
+            return Object.entries(val)
+                .map(([k, v]) => `<span style="color:#a5b4fc; font-weight:600;">${escapeHTML(k)}:</span> <span style="color:#fff;">${escapeHTML(typeof v === 'object' ? JSON.stringify(v) : String(v))}</span>`)
+                .join(' | ');
+        }
+        return escapeHTML(String(val));
+    }
     
     if (typeof answer === 'string') {
         const lines = answer.split('\n').filter(l => l.trim().length > 0);
@@ -2420,12 +2453,12 @@ function formatRAGAnswerToHTML(answer) {
     if (typeof answer === 'object') {
         let html = '';
         if (answer.answer) {
-            html += `<p style="font-weight:600; color:#fff; margin-bottom:0.4rem;">${escapeHTML(answer.answer)}</p>`;
+            html += `<p style="font-weight:600; color:#fff; margin-bottom:0.4rem;">${escapeHTML(String(answer.answer))}</p>`;
         }
         if (Array.isArray(answer.details)) {
             html += '<ul style="margin-top:0.3rem; padding-left:1.2rem; color:#cbd5e1;">';
             answer.details.forEach(d => {
-                html += `<li style="margin-bottom:0.25rem;">${escapeHTML(String(d))}</li>`;
+                html += `<li style="margin-bottom:0.35rem; font-size:0.75rem;">${formatValue(d)}</li>`;
             });
             html += '</ul>';
         }
@@ -2434,23 +2467,18 @@ function formatRAGAnswerToHTML(answer) {
             if (key === 'answer' || key === 'details') continue;
             
             const title = key.replace(/_/g, ' ').toUpperCase();
-            html += `<div style="margin-top:0.5rem;"><strong style="color:#a5b4fc; font-size:0.8rem;">${escapeHTML(title)}:</strong>`;
+            html += `<div style="margin-top:0.5rem;"><strong style="color:#a5b4fc; font-size:0.88rem;">${escapeHTML(title)}:</strong>`;
             
             if (Array.isArray(value)) {
                 html += '<ul style="margin-top:0.25rem; padding-left:1.2rem; color:#e2e8f0;">';
                 value.forEach(item => {
-                    if (typeof item === 'object' && item !== null) {
-                        const itemStr = Object.entries(item).map(([k, v]) => `<span style="color:#94a3b8;">${escapeHTML(k)}:</span> <strong style="color:#fff;">${escapeHTML(String(v))}</strong>`).join(' | ');
-                        html += `<li style="margin-bottom:0.35rem; font-size:0.75rem;">${itemStr}</li>`;
-                    } else {
-                        html += `<li style="margin-bottom:0.25rem;">${escapeHTML(String(item))}</li>`;
-                    }
+                    html += `<li style="margin-bottom:0.35rem; font-size:0.75rem;">${formatValue(item)}</li>`;
                 });
                 html += '</ul>';
             } else if (typeof value === 'object' && value !== null) {
-                html += `<pre style="font-size:0.7rem; color:#cbd5e1; white-space:pre-wrap;">${escapeHTML(JSON.stringify(value, null, 2))}</pre>`;
+                html += `<div style="margin-top:0.2rem; font-size:0.75rem; color:#e2e8f0;">${formatValue(value)}</div>`;
             } else {
-                html += `<span style="color:#fff; margin-left:0.4rem;">${escapeHTML(String(value))}</span>`;
+                html += `<span style="color:#fff; margin-left:0.4rem; font-weight:600;">${escapeHTML(String(value))}</span>`;
             }
             html += '</div>';
         }

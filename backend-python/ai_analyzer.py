@@ -329,3 +329,55 @@ if __name__ == '__main__':
     print("Testing AI Analyzer...")
     res = predict_growth_stocks()
     print(json.dumps(res, indent=2))
+
+
+def call_llm_text_completion(system_prompt, user_prompt):
+    """
+    Calls LLM (Groq Llama 3 / Gemini) for free-form conversational text completion.
+    Supports warm Mota Bhai persona responses, general chat, and RAG data answers.
+    """
+    import os
+    
+    # 1. Try Groq (Llama 3.3 70B Versatile)
+    groq_api_key = os.environ.get("GROQ_API_KEY")
+    if groq_api_key:
+        try:
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            payload = {
+                "model": "llama-3.3-70b-versatile",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                "temperature": 0.7,
+                "max_tokens": 1024
+            }
+            req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), method='POST')
+            req.add_header('Content-Type', 'application/json')
+            req.add_header('Authorization', f'Bearer {groq_api_key}')
+            req.add_header('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)')
+            response = urllib.request.urlopen(req, timeout=30)
+            res_data = json.loads(response.read().decode('utf-8'))
+            return res_data['choices'][0]['message']['content'].strip()
+        except Exception as e:
+            print(f"[LLM Text Completion] Groq API call failed: {e}")
+
+    # 2. Try Gemini API
+    gemini_api_key = os.environ.get("GEMINI_API_KEY")
+    if gemini_api_key:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_api_key}"
+            payload = {
+                "system_instruction": {"parts": [{"text": system_prompt}]},
+                "contents": [{"parts": [{"text": user_prompt}]}],
+                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1024}
+            }
+            req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), method='POST')
+            req.add_header('Content-Type', 'application/json')
+            response = urllib.request.urlopen(req, timeout=30)
+            res_data = json.loads(response.read().decode('utf-8'))
+            return res_data['candidates'][0]['content']['parts'][0]['text'].strip()
+        except Exception as e:
+            print(f"[LLM Text Completion] Gemini API call failed: {e}")
+
+    return None

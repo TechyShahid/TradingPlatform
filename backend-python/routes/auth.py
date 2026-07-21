@@ -111,15 +111,17 @@ def login_callback():
             cursor.execute("SELECT entitlements FROM users WHERE email = ?", (email,))
             row = cursor.fetchone()
             
-            # Grant 'stock_admin' if it's the dev user or if it's the very first user
-            cursor.execute("SELECT COUNT(*) FROM users")
-            user_count = cursor.fetchone()[0]
-            
+            # Check configured admin emails
+            admin_env = os.environ.get('ADMIN_EMAILS', os.environ.get('ADMIN_EMAIL', ''))
+            admin_list = [e.strip().lower() for e in admin_env.split(',') if e.strip()]
+
             if row and row['entitlements'] is not None:
                 entitlements = row['entitlements']
             else:
-                if email == 'dev@protrade.local' or user_count == 0:
+                if (os.environ.get('DEV_BYPASS') == 'true' and email == 'dev@protrade.local') or (admin_list and email.lower() in admin_list):
                     entitlements = 'stock_admin'
+                else:
+                    entitlements = 'user'
                     
             cursor.execute('''
                 INSERT INTO users (email, name, last_login, entitlements)
@@ -184,20 +186,33 @@ def check_admin_entitlement():
     user = session.get('user')
     if not user:
         return False
-    
+
+    user_email = user.get('email', '').lower()
+    admin_env = os.environ.get('ADMIN_EMAILS', os.environ.get('ADMIN_EMAIL', ''))
+    admin_list = [e.strip().lower() for e in admin_env.split(',') if e.strip()]
+    dev_is_bypass = (os.environ.get('DEV_BYPASS') == 'true' and user_email == 'dev@protrade.local')
+
+    if dev_is_bypass or (admin_list and user_email in admin_list):
+        if 'stock_admin' not in user.get('entitlements', ''):
+            user['entitlements'] = 'stock_admin'
+            session['user'] = user
+        return True
+
     try:
         conn = database.get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT entitlements FROM users WHERE email = ?", (user['email'],))
         row = cursor.fetchone()
         conn.close()
-        if row:
-            entitlements = row['entitlements'] or ''
-            return 'stock_admin' in [e.strip() for e in entitlements.split(',')]
+
+        if row and row['entitlements']:
+            entitlements = row['entitlements']
+            if 'stock_admin' in [e.strip() for e in entitlements.split(',')]:
+                return True
     except Exception as e:
         print(f"[Database] Error checking admin status: {e}")
         
-    # Fallback to session
+    # Fallback to session check
     return 'stock_admin' in [e.strip() for e in user.get('entitlements', '').split(',')]
 
 

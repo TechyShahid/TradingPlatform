@@ -42,8 +42,13 @@ def run_analysis_task(check_trend=False, check_price_move=False):
         analysis_state['running'] = False
 
 
+from routes.auth import check_admin_entitlement
+
 @volume_bp.route('/api/analyze', methods=['POST'])
 def start_analyze():
+    if not check_admin_entitlement():
+        return jsonify({'error': 'Forbidden: stock_admin entitlement required'}), 403
+
     if analysis_state['running']:
         return jsonify({'error': 'Analysis already in progress'}), 400
     
@@ -63,6 +68,8 @@ def start_analyze():
 
 @volume_bp.route('/api/analyze_price_move', methods=['POST'])
 def start_analyze_price_move():
+    if not check_admin_entitlement():
+        return jsonify({'error': 'Forbidden: stock_admin entitlement required'}), 403
     if analysis_state['running']:
         return jsonify({'error': 'Analysis already in progress'}), 400
     

@@ -38,7 +38,9 @@
 
             <!-- SPA Nav Tabs -->
             <nav class="nav-tabs">
-                <button class="tab-btn active" data-view="volume">⚡ Volume Radar</button>
+                {% if session.get('user') and 'stock_admin' in (session.get('user').get('entitlements') or '') %}
+                <button class="tab-btn" data-view="volume">⚡ Volume Radar</button>
+                {% endif %}
                 <button class="tab-btn" data-view="deals">🤝 Recent Deals</button>
                 <button class="tab-btn" data-view="growth">🚀 Growth Engine</button>
                 <button class="tab-btn" data-view="news">📰 Live News</button>
@@ -53,7 +55,7 @@
         <!-- VIEW PANELS -->
 
         <!-- 1. Volume Radar View -->
-        <div id="view-volume" class="view-panel active">
+        <div id="view-volume" class="view-panel">
             <div class="card" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem;">
                 <div class="toggle-container">
                     <span class="toggle-label">15m Trend Filter</span>
@@ -443,48 +445,41 @@
                 </main>
             </div>
         </div>
-    </div>
 
     <!-- 5. Admin Panel View -->
-    {% if session.get('user') and 'stock_admin' in (session.get('user').get('entitlements') or '') %}
     <div id="view-admin" class="view-panel">
-        <div class="card" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem;">
-            <div style="flex: 1; display: flex; align-items: center; gap: 0.5rem;">
-                <span style="font-size: 1.1rem;">🛡️</span>
+        <div class="card" style="padding: 1.5rem; border-left: 4px solid var(--accent);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
                 <div>
-                    <h2 style="font-size: 0.95rem; font-weight: 600; color: #fff;">User Management Dashboard</h2>
-                    <p style="font-size: 0.65rem; color: var(--text-secondary);">Manage application users and security entitlements</p>
+                    <h2 style="font-size: 1.1rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 0.5rem;">
+                        🛡️ User Entitlements & Access Management
+                    </h2>
+                    <p style="color: var(--text-secondary); font-size: 0.75rem; margin-top: 0.25rem;">Grant or revoke platform features, administrative privileges, and user access levels.</p>
                 </div>
+                <button class="btn-primary" onclick="AdminController.loadUsers()" style="font-size: 0.75rem; padding: 0.5rem 1rem;">🔄 Refresh Users</button>
             </div>
-            <div class="filter-group" style="margin-bottom: 0;">
-                <input type="text" id="admin-search-input" class="input-text" placeholder="Search name or email..." onkeyup="AdminController.filterUsers()" style="min-width: 240px;">
-            </div>
-        </div>
 
-        <div class="card" style="padding: 0;">
-            <div class="table-container">
-                <table>
+            <div class="table-responsive">
+                <table class="data-table" id="admin-users-table">
                     <thead>
                         <tr>
                             <th>User ID</th>
-                            <th>Full Name</th>
-                            <th>Email Address</th>
+                            <th>Name</th>
+                            <th>Email</th>
                             <th>Last Login</th>
-                            <th>Entitlements</th>
+                            <th>Active Entitlements</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="admin-users-body">
-                        <!-- Data injected dynamically -->
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: var(--text-secondary);">Loading platform users...</td>
+                        </tr>
                     </tbody>
                 </table>
-                <div id="admin-empty-state" class="empty-state" style="display: none;">
-                    No users found.
-                </div>
             </div>
         </div>
     </div>
-    {% endif %}
 
     <!-- 6. IPO Tracker View -->
     <div id="view-ipo" class="view-panel">

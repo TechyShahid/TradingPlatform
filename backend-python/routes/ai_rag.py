@@ -2,6 +2,7 @@
 RAG API Routes — Token-Efficient AI Assistant Endpoint.
 Exposes /api/ai/ask endpoint powered by TokenEfficientRAGEngine.
 """
+import config
 from flask import Blueprint, request, jsonify
 import database
 from services.rag_service import rag_engine
@@ -61,12 +62,42 @@ def sync_platform_data_to_rag():
 
         conn.close()
 
-        # Reset and re-index
+        # Reset, clear cache and re-index
+        rag_engine.query_cache.clear()
         rag_engine.documents = []
         rag_engine.chunks = []
         rag_engine.add_documents(docs)
     except Exception as e:
         print(f"[RAG Route] Error syncing platform data to RAG: {e}")
+
+
+GREETINGS_MAP = {
+    ("hi", "hello", "hey", "kem cho", "kemcho", "hie", "namaste", "good morning", "good evening", "good afternoon"): 
+        "Kem Cho! Majama? I am **Mota Bhai**, your AI Financial Copilot. Ask me anything about stocks, IPOs, mutual funds, or bulk/block deals!",
+    
+    ("how are you", "how r u", "how are u", "how do you do", "kem cho mota bhai", "how r u mota bhai", "how are you mota bhai"): 
+        "Ekdam Majama! I am ready to help you analyze Indian stock markets, top IPOs, mutual funds, and large institutional deals. What would you like to explore today?",
+    
+    ("who are you", "what is your name", "who r u", "who is mota bhai", "tell me about yourself", "what are you"): 
+        "I am **Mota Bhai** 👳‍♂️ — your smart, token-efficient AI Copilot for Indian stock markets! I analyze live data for IPOs, Mutual Funds, Bulk/Block Deals, and Compounder Stocks.",
+    
+    ("what can you do", "help", "features", "how to use", "what can u do"): 
+        "Here is what I can do for you:\n- 📈 Recommend top compounder stocks to invest in\n- 🔥 Track active IPO subscription demand\n- 💼 Analyze Mutual Fund returns & expense ratios\n- 🤝 Track institutional Bulk & Block deals on NSE",
+    
+    ("thank you", "thanks", "dhanyawad", "shukriya", "great", "awesome", "nice"): 
+        "You're welcome! Tamaro Aabhar! Feel free to ask if you have more questions about stocks or markets."
+}
+
+
+def detect_greeting_response(query):
+    clean = query.strip().lower()
+    clean_words = "".join([c for c in clean if c.isalnum() or c.isspace()]).strip()
+    
+    for keywords, response in GREETINGS_MAP.items():
+        for kw in keywords:
+            if clean_words == kw or clean_words == f"{kw} mota bhai" or clean_words == f"mota bhai {kw}":
+                return response
+    return None
 
 
 @ai_rag_bp.route('/api/ai/ask', methods=['POST'])
@@ -83,7 +114,7 @@ def ask_ai_rag():
         if not user_query:
             return jsonify({"error": "Query parameter is required."}), 400
 
-        # 1. Check Semantic Cache
+        # 1. Check 0-token Semantic Cache
         cached_response = rag_engine.get_cached_response(user_query)
         if cached_response:
             return jsonify({
@@ -99,17 +130,12 @@ def ask_ai_rag():
         # 3. Prepare Token-Minimized Prompt
         rag_prompt = rag_engine.prepare_rag_prompt(user_query, top_k=5, max_context_tokens=600)
 
-        # 4. Invoke LLM (Groq / Gemini / Ollama / Fallback)
-        full_prompt = f"{rag_prompt['system_prompt']}\n\n{rag_prompt['user_prompt']}"
+        # 4. Dynamic LLM Completion (Groq Llama 3 / Gemini / Heuristic Fallback)
+        answer = ai_analyzer.call_llm_text_completion(rag_prompt['system_prompt'], rag_prompt['user_prompt'])
         
-        answer = None
-        try:
-            answer = ai_analyzer.call_groq_api(full_prompt)
-        except Exception:
-            try:
-                answer = ai_analyzer.call_ollama(full_prompt)
-            except Exception:
-                answer = f"Based on retrieved data:\n{rag_prompt['compressed_context']}"
+        if not answer:
+            # Smart Fallback if LLM API is unreachable
+            answer = f"Kem Cho! I analyzed the platform database for '{user_query}':\n\n{rag_prompt['compressed_context']}"
 
         # 5. Cache response for future identical queries
         rag_engine.cache_response(user_query, answer)
@@ -118,8 +144,8 @@ def ask_ai_rag():
             "answer": answer,
             "cached": False,
             "estimated_tokens_used": rag_prompt["estimated_input_tokens"],
-            "compressed_context": rag_prompt["compressed_context"]
+            "retrieved_documents_count": rag_prompt["retrieved_count"]
         })
-
     except Exception as e:
+        print(f"[RAG Route] Exception in ask_ai_rag: {e}")
         return jsonify({"error": str(e)}), 500

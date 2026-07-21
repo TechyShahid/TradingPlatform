@@ -2602,12 +2602,55 @@ window.toggleTextToSpeech = function() {
     }
 };
 
+function getIndianMaleVoice() {
+    if (!window.speechSynthesis) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return null;
+
+    // 1. High Priority: Specific Indian Male Voices
+    const indianMaleVoice = voices.find(v => {
+        const name = (v.name || '').toLowerCase();
+        const lang = (v.lang || '').toLowerCase();
+        const isIndian = lang.includes('en-in') || lang.includes('hi-in') || lang.includes('gu-in') || name.includes('india');
+        const isMale = name.includes('rishi') || name.includes('prabhat') || name.includes('ravi') || name.includes('hemant') || name.includes('male') || name.includes('man');
+        return isIndian && isMale;
+    });
+    if (indianMaleVoice) return indianMaleVoice;
+
+    // 2. Medium Priority: Any Indian Voice (e.g. Rishi, Google English India)
+    const anyIndianVoice = voices.find(v => {
+        const lang = (v.lang || '').toLowerCase();
+        const name = (v.name || '').toLowerCase();
+        return lang.includes('en-in') || lang.includes('hi-in') || lang.includes('gu-in') || name.includes('india') || name.includes('rishi');
+    });
+    if (anyIndianVoice) return anyIndianVoice;
+
+    // 3. Fallback: General Natural Male Voice
+    const generalMaleVoice = voices.find(v => {
+        const name = (v.name || '').toLowerCase();
+        return name.includes('male') || name.includes('rishi') || name.includes('alex') || name.includes('daniel') || name.includes('guy');
+    });
+    return generalMaleVoice || voices[0];
+}
+
 window.speakText = function(text) {
     if (!ttsEnabled || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
+
     const cleanText = text.replace(/<[^>]*>/g, '').replace(/[\*\_]/g, '');
-    const utterance = new SpeechSynthesisUtterance(cleanText.substring(0, 300));
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
+    const utterance = new SpeechSynthesisUtterance(cleanText.substring(0, 350));
+    
+    const voice = getIndianMaleVoice();
+    if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang || 'en-IN';
+    } else {
+        utterance.lang = 'en-IN';
+    }
+
+    // Natural Indian Male Pitch & Rate Tuning
+    utterance.pitch = 0.88; // Warm, natural male pitch
+    utterance.rate = 0.95;  // Clear Indian conversational speed
+
     window.speechSynthesis.speak(utterance);
 };
